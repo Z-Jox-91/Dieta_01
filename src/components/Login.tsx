@@ -18,14 +18,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    console.log('Form inviato con dati:', formData);
     
     if (formData.name.trim() && formData.email.trim() && formData.password.trim()) {
       try {
         setIsLoading(true);
+        console.log('Tentativo di login in corso...');
         await onLogin(formData);
+        console.log('Login completato con successo');
       } catch (err: any) {
         // Gestione degli errori specifici di Firebase
         let errorMessage = 'Errore durante l\'accesso. Riprova più tardi.';
+        console.error('Errore durante il login:', err);
         
         if (err.code) {
           switch (err.code) {
@@ -75,7 +79,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
           )}
           
-          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6" autoComplete="off">
           <div>
             <label className="block text-sm font-medium text-sage-700 mb-2">
               Nome completo
@@ -87,6 +91,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full pl-10 pr-4 py-3 bg-white/60 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 shadow-sm focus:shadow-md text-sm sm:text-base"
                 placeholder="Il tuo nome"
+                autoComplete="new-name"
                 required
               />
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-sage-400" />
@@ -104,6 +109,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full pl-10 pr-4 py-3 bg-white/60 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 shadow-sm focus:shadow-md text-sm sm:text-base"
                 placeholder="la-tua-email@esempio.com"
+                autoComplete="new-email"
                 required
               />
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-sage-400" />
@@ -121,6 +127,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full pl-10 pr-4 py-3 bg-white/60 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 shadow-sm focus:shadow-md text-sm sm:text-base"
                 placeholder="La tua password"
+                autoComplete="new-password"
                 required
               />
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-sage-400" />
