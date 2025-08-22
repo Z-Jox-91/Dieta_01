@@ -89,8 +89,8 @@ export const MealSection: React.FC<MealSectionProps> = ({
         <div className="px-6 pb-6">
           <div className="space-y-4">
             {mealData.map((item) => (
-              <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 bg-sage-50/50 rounded-lg">
-                <div className="md:col-span-4">
+              <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 sm:p-4 bg-sage-50/50 rounded-lg">
+                <div className="md:col-span-4 sm:col-span-6">
                   <label className="block text-xs font-medium text-sage-700 mb-1">Alimento</label>
                   <FoodAutocomplete
                     value={item.food}
@@ -104,7 +104,7 @@ export const MealSection: React.FC<MealSectionProps> = ({
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="md:col-span-2 sm:col-span-3">
                   <label className="block text-xs font-medium text-sage-700 mb-1">Grammi</label>
                   <input
                     type="number"
@@ -149,7 +149,7 @@ export const MealSection: React.FC<MealSectionProps> = ({
                   </div>
                 </div>
 
-                <div className="md:col-span-1">
+                <div className="flex items-center justify-center md:col-span-1 sm:col-span-3">
                   <button
                     onClick={() => removeItem(item.id)}
                     className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
@@ -170,16 +170,16 @@ export const MealSection: React.FC<MealSectionProps> = ({
           </div>
 
           {/* Meal Summary */}
-          <div className="mt-6 p-4 bg-gradient-to-r from-primary-50 to-accent-50 rounded-lg">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex space-x-6">
+          <div className="mt-6 p-3 sm:p-4 bg-gradient-to-r from-primary-50 to-accent-50 rounded-lg">
+            <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+              <div className="flex flex-wrap gap-4 sm:gap-6">
                 <div>
                   <p className="text-xs text-sage-600">Totale Calorie</p>
-                  <p className="text-lg font-bold text-sage-900">{Math.round(totals.calories)}</p>
+                  <p className="text-base sm:text-lg font-bold text-sage-900">{Math.round(totals.calories)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-sage-600">Totale Proteine</p>
-                  <p className="text-lg font-bold text-sage-900">{totals.proteins.toFixed(1)}g</p>
+                  <p className="text-base sm:text-lg font-bold text-sage-900">{totals.proteins.toFixed(1)}g</p>
                 </div>
               </div>
             </div>
@@ -187,10 +187,10 @@ export const MealSection: React.FC<MealSectionProps> = ({
           
           {/* Macro Tab */}
           {totals.calories > 0 && (
-            <div className="mt-4 p-4 bg-white rounded-lg border border-sage-200 shadow-sm">
-              <div className="flex">
+            <div className="mt-4 p-3 sm:p-4 bg-white rounded-lg border border-sage-200 shadow-sm">
+              <div className="flex flex-wrap sm:flex-nowrap">
                 {/* Carboidrati - Area Gialla */}
-                <div className="flex-1 bg-yellow-100/70 p-3 rounded-l-lg">
+                <div className="flex-1 bg-yellow-100/70 p-2 sm:p-3 rounded-t-lg sm:rounded-t-none sm:rounded-l-lg w-full sm:w-auto">
                   <p className="text-xs font-medium text-sage-600">Carboidrati</p>
                   <p className="text-lg font-bold text-sage-900">
                     {((totals.carbs * 4) / (totals.calories || 1) * 100).toFixed(1)}%
@@ -199,7 +199,7 @@ export const MealSection: React.FC<MealSectionProps> = ({
                 </div>
                 
                 {/* Proteine - Area Rossa */}
-                <div className="flex-1 bg-red-100/70 p-3">
+                <div className="flex-1 bg-red-100/70 p-2 sm:p-3 w-full sm:w-auto">
                   <p className="text-xs font-medium text-sage-600">Proteine</p>
                   <p className="text-lg font-bold text-sage-900">
                     {((totals.proteins * 4) / (totals.calories || 1) * 100).toFixed(1)}%
@@ -208,7 +208,7 @@ export const MealSection: React.FC<MealSectionProps> = ({
                 </div>
                 
                 {/* Lipidi - Area Verde */}
-                <div className="flex-1 bg-green-100/70 p-3 rounded-r-lg">
+                <div className="flex-1 bg-green-100/70 p-2 sm:p-3 rounded-b-lg sm:rounded-b-none sm:rounded-r-lg w-full sm:w-auto">
                   <p className="text-xs font-medium text-sage-600">Lipidi</p>
                   <p className="text-lg font-bold text-sage-900">
                     {((totals.fats * 9) / (totals.calories || 1) * 100).toFixed(1)}%

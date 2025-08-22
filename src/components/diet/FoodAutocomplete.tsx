@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
+import { db, auth } from '../../firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 // Definizione dell'interfaccia per i dati nutrizionali
 interface NutritionalData {
@@ -25,25 +27,47 @@ interface FoodAutocompleteProps {
   grams: number;
 }
 
-// Database alimenti estratto dal file Excel fornito
-let foodDatabase: FoodItem[] = [
-  // Dati esistenti...
-];
+// Database alimenti iniziale vuoto
+let foodDatabase: FoodItem[] = [];
 
-// Carica il database da localStorage se disponibile
-try {
-  const savedDatabase = localStorage.getItem('bilanciamo_food_database');
-  if (savedDatabase) {
-    const parsedDatabase = JSON.parse(savedDatabase);
-    if (Array.isArray(parsedDatabase) && parsedDatabase.length > 0) {
-      foodDatabase = parsedDatabase;
+// Funzione per caricare il database da Firestore
+const loadFoodDatabase = async () => {
+  if (!auth.currentUser) return;
+  
+  try {
+    const foodsCollection = collection(db, `users/${auth.currentUser.uid}/foods`);
+    const foodsSnapshot = await getDocs(foodsCollection);
+    const foodsList = foodsSnapshot.docs.map(doc => doc.data() as FoodItem);
+    
+    if (foodsList.length > 0) {
+      foodDatabase = foodsList;
+    }
+  } catch (error) {
+    console.error('Errore nel caricamento del database alimentare da Firestore:', error);
+    
+    // Fallback a localStorage se Firestore fallisce
+    try {
+      const savedDatabase = localStorage.getItem('piano_alimentare_food_database');
+      if (savedDatabase) {
+        const parsedDatabase = JSON.parse(savedDatabase);
+        if (Array.isArray(parsedDatabase) && parsedDatabase.length > 0) {
+          foodDatabase = parsedDatabase;
+        }
+      }
+    } catch (localError) {
+      console.error('Errore nel caricamento del database alimentare da localStorage:', localError);
     }
   }
-} catch (error) {
-  console.error('Errore nel caricamento del database alimentare:', error);
-}
+};
+
+// Carica il database all'inizializzazione
+loadFoodDatabase();
 
 export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onChange, grams }) => {
+  // Carica il database alimentare da Firestore all'avvio del componente
+  useEffect(() => {
+    loadFoodDatabase();
+  }, []);
   const [searchTerm, setSearchTerm] = useState(value);
   const [suggestions, setSuggestions] = useState<FoodItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);

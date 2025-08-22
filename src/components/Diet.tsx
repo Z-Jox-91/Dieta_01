@@ -3,6 +3,8 @@ import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DaySelector } from './diet/DaySelector';
 import { MealSection } from './diet/MealSection';
 import { DayStats } from './diet/DayStats';
+import { db, auth } from '../firebase';
+import { collection, doc, getDoc, setDoc, getDocs } from 'firebase/firestore';
 
 // Definizione delle interfacce per i dati
 interface MealItem {
@@ -36,30 +38,72 @@ export const Diet: React.FC = () => {
   const [mealsData, setMealsData] = useState<MealsDataStore>({});
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('bilanciamo_meals');
-      if (saved) {
-        const parsedData = JSON.parse(saved);
-        if (parsedData && typeof parsedData === 'object') {
-          setMealsData(parsedData);
+    const loadMealsData = async () => {
+      if (!auth.currentUser) return;
+      
+      try {
+        // Prima controlla se ci sono dati in localStorage da migrare
+        const saved = localStorage.getItem('piano_alimentare_meals');
+        if (saved) {
+          try {
+            const parsedData = JSON.parse(saved);
+            if (parsedData && typeof parsedData === 'object' && Object.keys(parsedData).length > 0) {
+              // Migra i dati da localStorage a Firestore
+              await migrateLocalStorageToFirestore(parsedData);
+              // Rimuovi i dati da localStorage dopo la migrazione
+              localStorage.removeItem('piano_alimentare_meals');
+            }
+          } catch (error) {
+            console.error('Errore nella migrazione dei pasti:', error);
+          }
+        }
+        
+        // Carica i dati da Firestore
+        const mealsDoc = doc(db, `users/${auth.currentUser.uid}/data/meals`);
+        const mealsSnapshot = await getDoc(mealsDoc);
+        
+        if (mealsSnapshot.exists()) {
+          const mealsData = mealsSnapshot.data() as MealsDataStore;
+          setMealsData(mealsData);
         } else {
-          console.error('Formato dati non valido, inizializzazione con oggetto vuoto');
+          console.log('Nessun dato pasti trovato, inizializzazione con oggetto vuoto');
           setMealsData({});
         }
+      } catch (error) {
+        console.error('Errore nel caricamento dei dati da Firestore:', error);
+        // In caso di errore, inizializza con un oggetto vuoto
+        setMealsData({});
       }
-    } catch (error) {
-      console.error('Errore nel caricamento dei dati:', error);
-      // In caso di errore, inizializza con un oggetto vuoto
-      setMealsData({});
-    }
+    };
+    
+    loadMealsData();
   }, []);
 
-  const saveMealsData = (data: MealsDataStore) => {
+  // Funzione per migrare i dati da localStorage a Firestore
+  const migrateLocalStorageToFirestore = async (mealsData: MealsDataStore) => {
+    if (!auth.currentUser) return;
+    
+    try {
+      const mealsDoc = doc(db, `users/${auth.currentUser.uid}/data/meals`);
+      await setDoc(mealsDoc, mealsData);
+      console.log('Migrazione dei pasti completata con successo');
+    } catch (error) {
+      console.error('Errore durante la migrazione dei pasti:', error);
+    }
+  };
+  
+  const saveMealsData = async (data: MealsDataStore) => {
     try {
       setMealsData(data);
-      localStorage.setItem('bilanciamo_meals', JSON.stringify(data));
+      
+      if (auth.currentUser) {
+        const mealsDoc = doc(db, `users/${auth.currentUser.uid}/data/meals`);
+        await setDoc(mealsDoc, data);
+      } else {
+        console.error('Utente non autenticato, impossibile salvare i dati');
+      }
     } catch (error) {
-      console.error('Errore nel salvataggio dei dati:', error);
+      console.error('Errore nel salvataggio dei dati su Firestore:', error);
     }
   };
 
@@ -105,11 +149,18 @@ export const Diet: React.FC = () => {
 
   const updateDayData = (newData: DayMeals) => {
     try {
+      const dayKey = getDayKey();
       const updated = {
         ...mealsData,
-        [getDayKey()]: newData
+        [dayKey]: newData
       };
       saveMealsData(updated);
+      
+      // Assicurati che l'eliminazione dei pasti venga sincronizzata con Firestore
+      if (auth.currentUser) {
+        const mealsDoc = doc(db, `users/${auth.currentUser.uid}/data/meals`);
+        setDoc(mealsDoc, updated, { merge: true });
+      }
     } catch (error) {
       console.error('Errore nell\'aggiornamento dei dati del giorno:', error);
     }

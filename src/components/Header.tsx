@@ -16,8 +16,8 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
               <Activity className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-bold text-sage-900 truncate">Bilanciamo</h1>
-              <p className="text-xs text-sage-600 hidden sm:block">D.ssa Giulia Biondi</p>
+              <h1 className="text-lg sm:text-xl font-bold text-sage-900 truncate">Piano Alimentare</h1>
+              <p className="text-xs text-sage-600 hidden sm:block">Gestione Nutrizionale</p>
             </div>
           </div>
 

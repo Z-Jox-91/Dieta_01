@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { CookingPot, Download, Plus, Trash2 } from 'lucide-react';
 import { FoodAutocomplete } from './diet/FoodAutocomplete';
 import * as XLSX from 'xlsx';
+import { db, auth } from '../firebase';
+import { collection, doc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 
 interface RecipeItem {
   id: string;
@@ -29,31 +31,90 @@ export const Recipes: React.FC = () => {
   const [currentRecipe, setCurrentRecipe] = useState<string>('Nuova Ricetta');
   const [ingredients, setIngredients] = useState<RecipeItem[]>([]);
   
-  // Carica le ricette salvate dal localStorage
+  // Carica le ricette salvate da Firestore
   useEffect(() => {
-    try {
-      const savedRecipes = localStorage.getItem('bilanciamo_recipes');
-      if (savedRecipes) {
-        const parsedRecipes = JSON.parse(savedRecipes);
-        setRecipes(parsedRecipes);
-        
-        // Se ci sono ricette salvate, imposta la prima come ricetta corrente
-        const recipeNames = Object.keys(parsedRecipes);
-        if (recipeNames.length > 0) {
-          setCurrentRecipe(recipeNames[0]);
-          setIngredients(parsedRecipes[recipeNames[0]].ingredients);
+    const loadRecipes = async () => {
+      if (!auth.currentUser) return;
+      
+      try {
+        // Prima controlla se ci sono dati in localStorage da migrare
+        const savedRecipes = localStorage.getItem('piano_alimentare_recipes');
+        if (savedRecipes) {
+          try {
+            const parsedRecipes = JSON.parse(savedRecipes);
+            if (Object.keys(parsedRecipes).length > 0) {
+              // Migra i dati da localStorage a Firestore
+              await migrateLocalStorageToFirestore(parsedRecipes);
+              // Rimuovi i dati da localStorage dopo la migrazione
+              localStorage.removeItem('piano_alimentare_recipes');
+            }
+          } catch (error) {
+            console.error('Errore nella migrazione delle ricette:', error);
+          }
         }
+        
+        // Carica i dati da Firestore
+        const recipesCollection = collection(db, `users/${auth.currentUser.uid}/recipes`);
+        const recipesSnapshot = await getDocs(recipesCollection);
+        
+        const recipesData: Record<string, Recipe> = {};
+        recipesSnapshot.docs.forEach(doc => {
+          recipesData[doc.id] = doc.data() as Recipe;
+        });
+        
+        if (Object.keys(recipesData).length > 0) {
+          setRecipes(recipesData);
+          
+          // Se ci sono ricette salvate, imposta la prima come ricetta corrente
+          const recipeNames = Object.keys(recipesData);
+          if (recipeNames.length > 0) {
+            setCurrentRecipe(recipeNames[0]);
+            setIngredients(recipesData[recipeNames[0]].ingredients);
+          }
+        }
+      } catch (error) {
+        console.error('Errore nel caricamento delle ricette da Firestore:', error);
       }
-    } catch (error) {
-      console.error('Errore nel caricamento delle ricette:', error);
-    }
+    };
+    
+    loadRecipes();
   }, []);
   
-  // Salva le ricette nel localStorage quando cambiano
-  useEffect(() => {
-    if (Object.keys(recipes).length > 0) {
-      localStorage.setItem('bilanciamo_recipes', JSON.stringify(recipes));
+  // Funzione per migrare i dati da localStorage a Firestore
+  const migrateLocalStorageToFirestore = async (recipesData: Record<string, Recipe>) => {
+    if (!auth.currentUser) return;
+    
+    try {
+      const batch = [];
+      for (const [recipeName, recipe] of Object.entries(recipesData)) {
+        const recipeRef = doc(db, `users/${auth.currentUser.uid}/recipes/${recipeName}`);
+        batch.push(setDoc(recipeRef, recipe));
+      }
+      await Promise.all(batch);
+      console.log('Migrazione delle ricette completata con successo');
+    } catch (error) {
+      console.error('Errore durante la migrazione delle ricette:', error);
     }
+  };
+  
+  // Salva le ricette in Firestore quando cambiano
+  useEffect(() => {
+    const saveRecipesToFirestore = async () => {
+      if (!auth.currentUser || Object.keys(recipes).length === 0) return;
+      
+      try {
+        const batch = [];
+        for (const [recipeName, recipe] of Object.entries(recipes)) {
+          const recipeRef = doc(db, `users/${auth.currentUser.uid}/recipes/${recipeName}`);
+          batch.push(setDoc(recipeRef, recipe));
+        }
+        await Promise.all(batch);
+      } catch (error) {
+        console.error('Errore nel salvataggio delle ricette su Firestore:', error);
+      }
+    };
+    
+    saveRecipesToFirestore();
   }, [recipes]);
   
   const addIngredient = () => {
@@ -123,6 +184,35 @@ export const Recipes: React.FC = () => {
       ...prev,
       [currentRecipe]: updatedRecipe
     }));
+  };
+  
+  // Elimina una ricetta
+  const deleteRecipe = async (recipeName: string) => {
+    if (!recipeName || recipeName === 'Nuova Ricetta') return;
+    
+    if (confirm(`Sei sicuro di voler eliminare la ricetta "${recipeName}"?`)) {
+      try {
+        if (auth.currentUser) {
+          // Elimina il documento da Firestore
+          const recipeRef = doc(db, `users/${auth.currentUser.uid}/recipes/${recipeName}`);
+          await deleteDoc(recipeRef);
+        }
+        
+        // Aggiorna lo stato locale
+        const updatedRecipes = { ...recipes };
+        delete updatedRecipes[recipeName];
+        setRecipes(updatedRecipes);
+        
+        // Se la ricetta corrente è quella eliminata, imposta 'Nuova Ricetta'
+        if (currentRecipe === recipeName) {
+          setCurrentRecipe('Nuova Ricetta');
+          setIngredients([]);
+        }
+      } catch (error) {
+        console.error('Errore durante l\'eliminazione della ricetta:', error);
+        alert('Si è verificato un errore durante l\'eliminazione della ricetta. Riprova più tardi.');
+      }
+    }
   };
   
   const createNewRecipe = () => {
@@ -231,13 +321,24 @@ export const Recipes: React.FC = () => {
             </button>
             
             {Object.keys(recipes).map(recipeName => (
-              <button
-                key={recipeName}
-                onClick={() => loadRecipe(recipeName)}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${currentRecipe === recipeName ? 'bg-accent-600 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'}`}
-              >
-                {recipeName}
-              </button>
+              <div key={recipeName} className="flex items-center space-x-1">
+                <button
+                  onClick={() => loadRecipe(recipeName)}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${currentRecipe === recipeName ? 'bg-accent-600 text-white' : 'bg-sage-100 text-sage-700 hover:bg-sage-200'}`}
+                >
+                  {recipeName}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteRecipe(recipeName);
+                  }}
+                  className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors duration-200"
+                  title="Elimina ricetta"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
             ))}
           </div>
           
@@ -258,7 +359,7 @@ export const Recipes: React.FC = () => {
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="sm:col-span-2 md:col-span-2">
                   <label className="block text-xs font-medium text-sage-700 mb-1">Grammi</label>
                   <input
                     type="number"
@@ -283,7 +384,7 @@ export const Recipes: React.FC = () => {
                         updateIngredient(item.id, { grams });
                       }
                     }}
-                    className="w-full px-3 py-2 bg-white border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    className="w-full px-2 sm:px-3 py-1 sm:py-2 bg-white border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-xs sm:text-sm"
                     placeholder="0"
                     min="0"
                   />

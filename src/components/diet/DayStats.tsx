@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Zap, Target } from 'lucide-react';
+import { db, auth } from '../../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface DayStatsProps {
   dayData: any;
@@ -12,28 +14,38 @@ export const DayStats: React.FC<DayStatsProps> = ({ dayData, selectedDay }) => {
   const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
   
   useEffect(() => {
-    // Carica i limiti di calorie giornalieri dal localStorage
-    try {
-      const savedLimits = localStorage.getItem('bilanciamo_daily_limits');
-      if (savedLimits) {
-        const parsedLimits = JSON.parse(savedLimits);
-        const dayName = daysOfWeek[selectedDay];
-        setCalorieLimit(parsedLimits[dayName] || null);
-      }
+    const loadData = async () => {
+      if (!auth.currentUser) return;
       
-      // Carica l'obiettivo proteico giornaliero dal localStorage
-      const savedCalculations = localStorage.getItem('bilanciamo_calculations');
-      if (savedCalculations) {
-        const parsedCalculations = JSON.parse(savedCalculations);
-        if (parsedCalculations.results && parsedCalculations.results.dailyProteinRda) {
-          setProteinGoal(parsedCalculations.results.dailyProteinRda);
+      try {
+        // Carica i limiti di calorie giornalieri da Firestore
+        const limitsDoc = doc(db, `users/${auth.currentUser.uid}/data/daily_limits`);
+        const limitsSnapshot = await getDoc(limitsDoc);
+        
+        if (limitsSnapshot.exists()) {
+          const limitsData = limitsSnapshot.data();
+          const dayName = daysOfWeek[selectedDay];
+          setCalorieLimit(limitsData[dayName] || null);
         }
+        
+        // Carica l'obiettivo proteico giornaliero da Firestore
+        const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
+        const calculationsSnapshot = await getDoc(calculationsDoc);
+        
+        if (calculationsSnapshot.exists()) {
+          const calculationsData = calculationsSnapshot.data();
+          if (calculationsData.results && calculationsData.results.dailyProteinRda) {
+            setProteinGoal(calculationsData.results.dailyProteinRda);
+          }
+        }
+      } catch (error) {
+        console.error('Errore nel caricamento dei dati da Firestore:', error);
+        setCalorieLimit(null);
+        setProteinGoal(null);
       }
-    } catch (error) {
-      console.error('Errore nel caricamento dei dati:', error);
-      setCalorieLimit(null);
-      setProteinGoal(null);
-    }
+    };
+    
+    loadData();
   }, [selectedDay]);
 
   const calculateTotals = () => {

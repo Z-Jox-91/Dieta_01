@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, RotateCcw, Target } from 'lucide-react';
+import { db, auth } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface CalculationData {
   age: number;
@@ -47,25 +49,71 @@ export const Calculations: React.FC = () => {
   const [dailyCalorieLimits, setDailyCalorieLimits] = useState<DailyCalorieLimit>({});
 
   useEffect(() => {
-    const saved = localStorage.getItem('bilanciamo_calculations');
-    if (saved) {
-      const savedData = JSON.parse(saved);
-      setData(savedData.data);
-      setResults(savedData.results);
-      setIsCalculated(true);
-    }
-    
-    // Carica i limiti di calorie giornalieri
-    const savedLimits = localStorage.getItem('bilanciamo_daily_limits');
-    if (savedLimits) {
+    const loadCalculationsData = async () => {
+      if (!auth.currentUser) return;
+      
       try {
-        const parsedLimits = JSON.parse(savedLimits);
-        setDailyCalorieLimits(parsedLimits);
+        // Prima controlla se ci sono dati in localStorage da migrare
+        const saved = localStorage.getItem('piano_alimentare_calculations');
+        if (saved) {
+          try {
+            const savedData = JSON.parse(saved);
+            // Migra i dati da localStorage a Firestore
+            await migrateCalculationsToFirestore(savedData);
+            // Rimuovi i dati da localStorage dopo la migrazione
+            localStorage.removeItem('piano_alimentare_calculations');
+            
+            // Imposta i dati migrati nello state
+            setData(savedData.data);
+            setResults(savedData.results);
+            setIsCalculated(true);
+          } catch (error) {
+            console.error('Errore nella migrazione dei calcoli:', error);
+          }
+        }
+        
+        // Carica i dati da Firestore
+        const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
+        const calculationsSnapshot = await getDoc(calculationsDoc);
+        
+        if (calculationsSnapshot.exists()) {
+          const calculationsData = calculationsSnapshot.data();
+          setData(calculationsData.data);
+          setResults(calculationsData.results);
+          setIsCalculated(true);
+        }
+        
+        // Carica i limiti di calorie giornalieri
+        const savedLimits = localStorage.getItem('piano_alimentare_daily_limits');
+        if (savedLimits) {
+          try {
+            const parsedLimits = JSON.parse(savedLimits);
+            // Migra i limiti da localStorage a Firestore
+            await migrateLimitsToFirestore(parsedLimits);
+            // Rimuovi i dati da localStorage dopo la migrazione
+            localStorage.removeItem('piano_alimentare_daily_limits');
+            
+            // Imposta i limiti migrati nello state
+            setDailyCalorieLimits(parsedLimits);
+          } catch (error) {
+            console.error('Errore nella migrazione dei limiti giornalieri:', error);
+          }
+        }
+        
+        // Carica i limiti da Firestore
+        const limitsDoc = doc(db, `users/${auth.currentUser.uid}/data/daily_limits`);
+        const limitsSnapshot = await getDoc(limitsDoc);
+        
+        if (limitsSnapshot.exists()) {
+          const limitsData = limitsSnapshot.data() as DailyCalorieLimit;
+          setDailyCalorieLimits(limitsData);
+        }
       } catch (error) {
-        console.error('Errore nel caricamento dei limiti giornalieri:', error);
-        setDailyCalorieLimits({});
+        console.error('Errore nel caricamento dei dati da Firestore:', error);
       }
-    }
+    };
+    
+    loadCalculationsData();
   }, []);
 
   const calculateResults = (): Results => {
@@ -102,18 +150,56 @@ export const Calculations: React.FC = () => {
     };
   };
 
-  const handleCalculate = () => {
+  // Funzione per migrare i calcoli da localStorage a Firestore
+  const migrateCalculationsToFirestore = async (calculationsData: any) => {
+    if (!auth.currentUser) return;
+    
+    try {
+      const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
+      await setDoc(calculationsDoc, calculationsData);
+      console.log('Migrazione dei calcoli completata con successo');
+    } catch (error) {
+      console.error('Errore durante la migrazione dei calcoli:', error);
+    }
+  };
+  
+  // Funzione per migrare i limiti giornalieri da localStorage a Firestore
+  const migrateLimitsToFirestore = async (limitsData: DailyCalorieLimit) => {
+    if (!auth.currentUser) return;
+    
+    try {
+      const limitsDoc = doc(db, `users/${auth.currentUser.uid}/data/daily_limits`);
+      await setDoc(limitsDoc, limitsData);
+      console.log('Migrazione dei limiti giornalieri completata con successo');
+    } catch (error) {
+      console.error('Errore durante la migrazione dei limiti giornalieri:', error);
+    }
+  };
+  
+  const handleCalculate = async () => {
     const newResults = calculateResults();
     setResults(newResults);
     setIsCalculated(true);
     
-    localStorage.setItem('bilanciamo_calculations', JSON.stringify({
-      data,
-      results: newResults
-    }));
+    // Salva i dati e i risultati in Firestore
+    if (auth.currentUser) {
+      try {
+        const calculationsData = {
+          data,
+          results: newResults
+        };
+        
+        const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
+        await setDoc(calculationsDoc, calculationsData);
+      } catch (error) {
+        console.error('Errore nel salvataggio dei calcoli su Firestore:', error);
+      }
+    } else {
+      console.error('Utente non autenticato, impossibile salvare i calcoli');
+    }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setData({
       age: 0,
       height: 0,
@@ -125,15 +211,34 @@ export const Calculations: React.FC = () => {
     });
     setResults(null);
     setIsCalculated(false);
-    localStorage.removeItem('bilanciamo_calculations');
+    
+    // Rimuovi i dati da Firestore
+    if (auth.currentUser) {
+      try {
+        const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
+        await setDoc(calculationsDoc, {});
+      } catch (error) {
+        console.error('Errore nella rimozione dei calcoli da Firestore:', error);
+      }
+    }
   };
 
-  const handleDailyLimitChange = (day: string, value: string) => {
+  const handleDailyLimitChange = async (day: string, value: string) => {
     const newLimits = { ...dailyCalorieLimits };
     newLimits[day] = parseInt(value) || 0;
     setDailyCalorieLimits(newLimits);
     
-    localStorage.setItem('bilanciamo_daily_limits', JSON.stringify(newLimits));
+    // Salva i limiti giornalieri in Firestore
+    if (auth.currentUser) {
+      try {
+        const limitsDoc = doc(db, `users/${auth.currentUser.uid}/data/daily_limits`);
+        await setDoc(limitsDoc, newLimits);
+      } catch (error) {
+        console.error('Errore nel salvataggio dei limiti giornalieri su Firestore:', error);
+      }
+    } else {
+      console.error('Utente non autenticato, impossibile salvare i limiti giornalieri');
+    }
   };
 
   const getTotalWeeklyLimit = (): number => {
@@ -164,7 +269,7 @@ export const Calculations: React.FC = () => {
           <h2 className="text-lg sm:text-xl font-bold text-sage-900">Dati Personali</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
           <div>
             <label htmlFor="age" className="block text-sm font-medium text-sage-700 mb-2">Età</label>
             <input
@@ -172,7 +277,7 @@ export const Calculations: React.FC = () => {
               id="age"
               value={data.age || ''}
               onChange={(e) => setData({...data, age: parseInt(e.target.value) || 0})}
-              className="w-full px-4 py-3 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white/60 shadow-sm focus:shadow-md text-sm sm:text-base"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white/60 shadow-sm focus:shadow-md text-xs sm:text-sm lg:text-base"
               placeholder="Anni"
             />
           </div>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Upload, Trash2, Edit3, Save, X, CheckCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { db, auth } from '../firebase';
+import { collection, doc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 
 interface FoodItem {
   id: string;
@@ -42,37 +44,80 @@ export const Foods: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<'all' | 'CRB' | 'PRT' | 'LPD'>('all');
 
-  // Carica i dati dal localStorage all'avvio
+  // Carica i dati da Firestore all'avvio
   useEffect(() => {
-    const savedFoods = localStorage.getItem('bilanciamo_food_database');
-    if (savedFoods) {
+    const loadFoods = async () => {
+      if (!auth.currentUser) return;
+      
       try {
-        const parsedFoods = JSON.parse(savedFoods);
-        if (Array.isArray(parsedFoods)) {
-          // Converti il formato esistente se necessario
-          const convertedFoods = parsedFoods.map((food: any, index: number) => ({
-            id: food.id || `food_${index}`,
-            name: food.name || '',
-            category: food.category || calculateCategory(food.carbs || 0, food.proteins || 0, food.fats || 0),
-            calories: food.calories || 0,
-            carbs: food.carbs || 0,
-            proteins: food.proteins || 0,
-            fats: food.fats || 0
-          }));
-          setFoods(convertedFoods);
+        // Prima controlla se ci sono dati in localStorage da migrare
+        const savedFoods = localStorage.getItem('piano_alimentare_food_database');
+        if (savedFoods) {
+          try {
+            const parsedFoods = JSON.parse(savedFoods);
+            if (Array.isArray(parsedFoods) && parsedFoods.length > 0) {
+              // Migra i dati da localStorage a Firestore
+              await migrateLocalStorageToFirestore(parsedFoods);
+              // Rimuovi i dati da localStorage dopo la migrazione
+              localStorage.removeItem('piano_alimentare_food_database');
+            }
+          } catch (error) {
+            console.error('Errore nella migrazione del database alimentare:', error);
+          }
+        }
+        
+        // Carica i dati da Firestore
+        const foodsCollection = collection(db, `users/${auth.currentUser.uid}/foods`);
+        const foodsSnapshot = await getDocs(foodsCollection);
+        const foodsList = foodsSnapshot.docs.map(doc => doc.data() as FoodItem);
+        
+        if (foodsList.length > 0) {
+          setFoods(foodsList);
           setIsExcelLoaded(true);
         }
       } catch (error) {
-        console.error('Errore nel caricamento del database alimentare:', error);
+        console.error('Errore nel caricamento del database alimentare da Firestore:', error);
       }
-    }
+    };
+    
+    loadFoods();
   }, []);
 
-  // Salva i dati nel localStorage ogni volta che cambiano
-  useEffect(() => {
-    if (foods.length > 0) {
-      localStorage.setItem('bilanciamo_food_database', JSON.stringify(foods));
+  // Funzione per migrare i dati da localStorage a Firestore
+  const migrateLocalStorageToFirestore = async (foodsData: FoodItem[]) => {
+    if (!auth.currentUser) return;
+    
+    try {
+      const batch = [];
+      for (const food of foodsData) {
+        const foodRef = doc(db, `users/${auth.currentUser.uid}/foods/${food.id}`);
+        batch.push(setDoc(foodRef, food));
+      }
+      await Promise.all(batch);
+      console.log('Migrazione dei dati alimentari completata con successo');
+    } catch (error) {
+      console.error('Errore durante la migrazione dei dati alimentari:', error);
     }
+  };
+  
+  // Salva i dati in Firestore ogni volta che cambiano
+  useEffect(() => {
+    const saveFoodsToFirestore = async () => {
+      if (!auth.currentUser || foods.length === 0) return;
+      
+      try {
+        const batch = [];
+        for (const food of foods) {
+          const foodRef = doc(db, `users/${auth.currentUser.uid}/foods/${food.id}`);
+          batch.push(setDoc(foodRef, food));
+        }
+        await Promise.all(batch);
+      } catch (error) {
+        console.error('Errore nel salvataggio del database alimentare su Firestore:', error);
+      }
+    };
+    
+    saveFoodsToFirestore();
   }, [foods]);
 
   // Calcola automaticamente la categoria basata sui macronutrienti
@@ -154,9 +199,20 @@ export const Foods: React.FC = () => {
   };
 
   // Elimina un alimento
-  const handleDeleteFood = (id: string) => {
+  const handleDeleteFood = async (id: string) => {
     if (confirm('Sei sicuro di voler eliminare questo alimento?')) {
-      setFoods(prev => prev.filter(food => food.id !== id));
+      try {
+        if (auth.currentUser) {
+          // Elimina il documento da Firestore
+          const foodRef = doc(db, `users/${auth.currentUser.uid}/foods/${id}`);
+          await deleteDoc(foodRef);
+        }
+        // Aggiorna lo stato locale
+        setFoods(prev => prev.filter(food => food.id !== id));
+      } catch (error) {
+        console.error('Errore durante l\'eliminazione dell\'alimento:', error);
+        alert('Si è verificato un errore durante l\'eliminazione dell\'alimento. Riprova più tardi.');
+      }
     }
   };
 
@@ -268,22 +324,22 @@ export const Foods: React.FC = () => {
       </div>
 
       {/* Filtri e ricerca */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/20">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1">
             <input
               type="text"
               placeholder="Cerca alimenti..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 sm:px-4 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm sm:text-base"
             />
           </div>
-          <div>
+          <div className="w-full sm:w-auto">
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value as any)}
-              className="px-4 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 sm:px-4 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm sm:text-base"
             >
               <option value="all">Tutte le categorie</option>
               <option value="CRB">Carboidrati</option>
@@ -313,8 +369,8 @@ export const Foods: React.FC = () => {
         {isAddingNew && (
           <div className="p-6 border-b border-sage-200 bg-sage-50">
             <h3 className="text-lg font-semibold text-sage-900 mb-4">Nuovo Alimento</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+              <div className="sm:col-span-2 lg:col-span-2">
                 <label className="block text-sm font-medium text-sage-700 mb-1">Nome</label>
                 <input
                   type="text"
@@ -393,22 +449,22 @@ export const Foods: React.FC = () => {
 
         {/* Tabella alimenti */}
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[800px]">
             <thead className="bg-sage-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Nome</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Categoria</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Energia (kcal/100g)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Carboidrati (g/100g)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Proteine (g/100g)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Lipidi (g/100g)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Azioni</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Nome</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Categoria</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Energia (kcal/100g)</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Carboidrati (g/100g)</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Proteine (g/100g)</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Lipidi (g/100g)</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Azioni</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-sage-200">
               {filteredFoods.map((food) => (
                 <tr key={food.id} className="hover:bg-sage-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                     {editingId === food.id ? (
                       <input
                         type="text"
@@ -425,7 +481,7 @@ export const Foods: React.FC = () => {
                       {getCategoryLabel(food.category)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sage-900">
+                  <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-sage-900">
                     {editingId === food.id ? (
                       <input
                         type="number"

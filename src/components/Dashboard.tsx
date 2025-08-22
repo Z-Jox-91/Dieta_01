@@ -4,6 +4,7 @@ import { Calculations } from './Calculations';
 import { Diet } from './Diet';
 import { Recipes } from './Recipes';
 import { Foods } from './Foods';
+import './styles/Dashboard.css';
 
 interface DashboardProps {
   user: { name: string; email: string };
@@ -73,7 +74,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
       {/* Tab Navigation */}
       <div className="bg-white/90 backdrop-blur-sm rounded-xl p-2 mb-6 sm:mb-8 border border-white/20 shadow-lg">
-        <div className="flex flex-wrap gap-1 sm:gap-2">
+        <div className="flex flex-wrap gap-1 sm:gap-2 dashboard-tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -82,13 +83,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center justify-center space-x-1 sm:space-x-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 flex-1 sm:flex-none min-w-0 ${
+                className={`flex items-center justify-center space-x-1 sm:space-x-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 flex-1 sm:flex-none min-w-0 dashboard-tab ${
                   isActive
                     ? 'bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-lg transform scale-105'
                     : 'text-sage-600 hover:text-sage-900 hover:bg-sage-50 hover:shadow-md'
                 }`}
               >
-                <Icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 dashboard-tab-icon" />
                 <span className="text-xs sm:text-sm truncate">{tab.label}</span>
               </button>
             );
