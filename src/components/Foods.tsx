@@ -447,24 +447,24 @@ export const Foods: React.FC = () => {
           </div>
         )}
 
-        {/* Tabella alimenti */}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
+        {/* Tabella alimenti - Desktop */}
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="w-full">
             <thead className="bg-sage-50">
               <tr>
-                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Nome</th>
-                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Categoria</th>
-                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Energia (kcal/100g)</th>
-                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Carboidrati (g/100g)</th>
-                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Proteine (g/100g)</th>
-                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Lipidi (g/100g)</th>
-                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Azioni</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Nome</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Categoria</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Energia (kcal/100g)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Carboidrati (g/100g)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Proteine (g/100g)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Lipidi (g/100g)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Azioni</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-sage-200">
               {filteredFoods.map((food) => (
                 <tr key={food.id} className="hover:bg-sage-50">
-                  <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     {editingId === food.id ? (
                       <input
                         type="text"
@@ -481,7 +481,7 @@ export const Foods: React.FC = () => {
                       {getCategoryLabel(food.category)}
                     </span>
                   </td>
-                  <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-sage-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sage-900">
                     {editingId === food.id ? (
                       <input
                         type="number"
@@ -574,13 +574,138 @@ export const Foods: React.FC = () => {
               ))}
             </tbody>
           </table>
-          
-          {filteredFoods.length === 0 && (
-            <div className="text-center py-8 text-sage-500">
-              {foods.length === 0 ? 'Nessun alimento presente. Carica un file Excel o aggiungi manualmente.' : 'Nessun alimento trovato con i filtri selezionati.'}
-            </div>
-          )}
         </div>
+
+        {/* Layout a card per mobile e tablet */}
+        <div className="lg:hidden space-y-4 p-4">
+          {filteredFoods.map((food) => (
+            <div key={food.id} className="bg-white rounded-lg border border-sage-200 p-4 shadow-sm">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  {editingId === food.id ? (
+                    <input
+                      type="text"
+                      value={editFood.name}
+                      onChange={(e) => setEditFood(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium"
+                    />
+                  ) : (
+                    <h3 className="font-medium text-sage-900 text-lg">{food.name}</h3>
+                  )}
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${getCategoryColor(food.category)}`}>
+                    {getCategoryLabel(food.category)}
+                  </span>
+                </div>
+                <div className="flex space-x-2 ml-4">
+                  {editingId === food.id ? (
+                    <>
+                      <button
+                        onClick={saveEdit}
+                        className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-colors"
+                      >
+                        <Save className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => startEditing(food)}
+                        className="p-2 text-primary-600 hover:text-primary-900 hover:bg-primary-50 rounded-lg transition-colors"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFood(food.id)}
+                        className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-sage-50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-sage-600 mb-1">Energia</p>
+                  {editingId === food.id ? (
+                    <input
+                      type="number"
+                      value={editFood.calories}
+                      onChange={(e) => setEditFood(prev => ({ ...prev, calories: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      min="0"
+                      step="0.1"
+                    />
+                  ) : (
+                    <p className="text-sm font-semibold text-sage-900">{food.calories.toFixed(1)} kcal</p>
+                  )}
+                </div>
+                
+                <div className="bg-sage-50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-sage-600 mb-1">Proteine</p>
+                  {editingId === food.id ? (
+                    <input
+                      type="number"
+                      value={editFood.proteins}
+                      onChange={(e) => setEditFood(prev => ({ ...prev, proteins: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      min="0"
+                      step="0.1"
+                    />
+                  ) : (
+                    <p className="text-sm font-semibold text-sage-900">{food.proteins.toFixed(1)}g</p>
+                  )}
+                </div>
+                
+                <div className="bg-sage-50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-sage-600 mb-1">Carboidrati</p>
+                  {editingId === food.id ? (
+                    <input
+                      type="number"
+                      value={editFood.carbs}
+                      onChange={(e) => setEditFood(prev => ({ ...prev, carbs: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      min="0"
+                      step="0.1"
+                    />
+                  ) : (
+                    <p className="text-sm font-semibold text-sage-900">{food.carbs.toFixed(1)}g</p>
+                  )}
+                </div>
+                
+                <div className="bg-sage-50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-sage-600 mb-1">Lipidi</p>
+                  {editingId === food.id ? (
+                    <input
+                      type="number"
+                      value={editFood.fats}
+                      onChange={(e) => setEditFood(prev => ({ ...prev, fats: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      min="0"
+                      step="0.1"
+                    />
+                  ) : (
+                    <p className="text-sm font-semibold text-sage-900">{food.fats.toFixed(1)}g</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+          
+        {filteredFoods.length === 0 && (
+          <div className="text-center py-8 text-sage-500">
+            {foods.length === 0 ? 'Nessun alimento presente. Carica un file Excel o aggiungi manualmente.' : 'Nessun alimento trovato con i filtri selezionati.'}
+          </div>
+        )}
+      </div>
       </div>
     </div>
   );

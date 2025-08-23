@@ -17,6 +17,12 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Test di connettività Firebase
+    console.log('=== TEST CONNETTIVITÀ FIREBASE ===');
+    console.log('Auth object:', auth);
+    console.log('DB object:', db);
+    console.log('Firebase config:', auth.app.options);
+    
     // Sottoscrizione allo stato di autenticazione
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       console.log('Stato autenticazione cambiato:', authUser ? 'Utente autenticato' : 'Utente non autenticato');
@@ -68,8 +74,15 @@ function App() {
         throw new Error('Password richiesta');
       }
       
+      console.log('=== INIZIO PROCESSO DI LOGIN ===');
       console.log('Firebase Auth:', auth);
       console.log('Firebase Auth currentUser:', auth.currentUser);
+      console.log('Dati utente ricevuti:', { name: userData.name, email: userData.email });
+      
+      // Test di connettività Firebase
+      console.log('Test connettività Firebase...');
+      console.log('Auth domain:', auth.app.options.authDomain);
+      console.log('Project ID:', auth.app.options.projectId);
       
       // Crea o accedi all'account con email e password
       let userCredential;
@@ -101,8 +114,11 @@ function App() {
       console.log('Firebase Auth currentUser dopo login:', auth.currentUser);
       
       // L'utente verrà impostato dall'effetto onAuthStateChanged
+      console.log('=== FINE PROCESSO DI LOGIN - SUCCESSO ===');
     } catch (error) {
+      console.error('=== FINE PROCESSO DI LOGIN - ERRORE ===');
       console.error('Errore durante l\'autenticazione:', error);
+      throw error; // Rilancia l'errore per permettere al componente Login di gestirlo
     }
   };
 

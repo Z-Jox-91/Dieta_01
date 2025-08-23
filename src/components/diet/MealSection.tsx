@@ -87,10 +87,11 @@ export const MealSection: React.FC<MealSectionProps> = ({
 
       {isExpanded && (
         <div className="px-6 pb-6">
-          <div className="space-y-4">
+          {/* Layout Desktop */}
+          <div className="hidden lg:block space-y-4">
             {mealData.map((item) => (
-              <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 sm:p-4 bg-sage-50/50 rounded-lg">
-                <div className="md:col-span-4 sm:col-span-6">
+              <div key={item.id} className="grid grid-cols-12 gap-3 items-end p-4 bg-sage-50/50 rounded-lg">
+                <div className="col-span-4">
                   <label className="block text-xs font-medium text-sage-700 mb-1">Alimento</label>
                   <FoodAutocomplete
                     value={item.food}
@@ -104,14 +105,13 @@ export const MealSection: React.FC<MealSectionProps> = ({
                   />
                 </div>
 
-                <div className="md:col-span-2 sm:col-span-3">
+                <div className="col-span-2">
                   <label className="block text-xs font-medium text-sage-700 mb-1">Grammi</label>
                   <input
                     type="number"
                     value={item.grams || ''}
                     onChange={(e) => {
                       const grams = parseFloat(e.target.value) || 0;
-                      // Ricalcola i valori nutrizionali se abbiamo i dati base
                       if (item.food && item.calories > 0) {
                         const baseCalories = (item.calories / (item.grams || 1)) * 100;
                         const baseProteins = (item.proteins / (item.grams || 1)) * 100;
@@ -135,27 +135,114 @@ export const MealSection: React.FC<MealSectionProps> = ({
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="col-span-2">
                   <label className="block text-xs font-medium text-sage-700 mb-1">Kcal</label>
                   <div className="px-3 py-2 bg-sage-100 border border-sage-200 rounded-lg text-sm text-sage-700">
                     {Math.round(item.calories || 0)}
                   </div>
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="col-span-2">
                   <label className="block text-xs font-medium text-sage-700 mb-1">Proteine (g)</label>
                   <div className="px-3 py-2 bg-sage-100 border border-sage-200 rounded-lg text-sm text-sage-700">
                     {(item.proteins || 0).toFixed(1)}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center md:col-span-1 sm:col-span-3">
+                <div className="col-span-1 flex items-center justify-center">
                   <button
                     onClick={() => removeItem(item.id)}
                     className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
+                </div>
+              </div>
+            ))}
+            
+            <button
+              onClick={addItem}
+              className="w-full p-4 border-2 border-dashed border-sage-300 rounded-lg text-sage-600 hover:text-sage-900 hover:border-sage-400 hover:bg-sage-50/50 transition-all duration-200 flex items-center justify-center space-x-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Aggiungi alimento</span>
+            </button>
+          </div>
+          
+          {/* Layout Mobile e Tablet */}
+          <div className="lg:hidden space-y-4">
+            {mealData.map((item) => (
+              <div key={item.id} className="bg-sage-50/50 rounded-lg p-4 space-y-4">
+                <div className="flex justify-between items-start">
+                  <h4 className="font-medium text-sage-900 text-sm">
+                    {item.food || 'Seleziona alimento'}
+                  </h4>
+                  <button
+                    onClick={() => removeItem(item.id)}
+                    className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors duration-200"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-sage-700 mb-1">Alimento</label>
+                    <FoodAutocomplete
+                      value={item.food}
+                      onChange={(food, nutritionalData) => {
+                        updateItem(item.id, {
+                          food,
+                          ...nutritionalData
+                        });
+                      }}
+                      grams={item.grams}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-sage-700 mb-1">Grammi</label>
+                      <input
+                        type="number"
+                        value={item.grams || ''}
+                        onChange={(e) => {
+                          const grams = parseFloat(e.target.value) || 0;
+                          if (item.food && item.calories > 0) {
+                            const baseCalories = (item.calories / (item.grams || 1)) * 100;
+                            const baseProteins = (item.proteins / (item.grams || 1)) * 100;
+                            const baseCarbs = (item.carbs / (item.grams || 1)) * 100;
+                            const baseFats = (item.fats / (item.grams || 1)) * 100;
+                            
+                            updateItem(item.id, {
+                              grams,
+                              calories: (baseCalories * grams) / 100,
+                              proteins: (baseProteins * grams) / 100,
+                              carbs: (baseCarbs * grams) / 100,
+                              fats: (baseFats * grams) / 100
+                            });
+                          } else {
+                            updateItem(item.id, { grams });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-white border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-sage-700 mb-1">Proteine (g)</label>
+                      <div className="px-3 py-2 bg-sage-100 border border-sage-200 rounded-lg text-sm text-sage-700">
+                        {(item.proteins || 0).toFixed(1)}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-center p-2 bg-white rounded-lg border border-sage-200">
+                    <span className="text-xs text-sage-600">Calorie: </span>
+                    <span className="font-semibold text-sage-900">{Math.round(item.calories || 0)} kcal</span>
+                  </div>
                 </div>
               </div>
             ))}

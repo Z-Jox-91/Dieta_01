@@ -7,9 +7,9 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: ''
+    name: 'Test User',
+    email: 'test@example.com',
+    password: 'test123456'
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -19,13 +19,21 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     e.preventDefault();
     setError(null);
     console.log('Form inviato con dati:', formData);
+    console.log('Stato isLoading prima del submit:', isLoading);
+    console.log('Evento form submit intercettato correttamente');
     
     if (formData.name.trim() && formData.email.trim() && formData.password.trim()) {
+      console.log('Validazione superata, dati del form:', {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: '***' // Non loggare la password per sicurezza
+      });
       try {
         setIsLoading(true);
         console.log('Tentativo di login in corso...');
-        await onLogin(formData);
-        console.log('Login completato con successo');
+        console.log('Chiamata a onLogin con:', formData);
+        const loginResult = await onLogin(formData);
+        console.log('Login completato con successo, risultato:', loginResult);
       } catch (err: any) {
         // Gestione degli errori specifici di Firebase
         let errorMessage = 'Errore durante l\'accesso. Riprova più tardi.';
@@ -59,6 +67,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       } finally {
         setIsLoading(false);
       }
+    } else {
+      console.log('Validazione fallita:', {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password.trim() ? '***' : 'vuoto'
+      });
+      setError('Tutti i campi sono obbligatori.');
     }
   };
 
@@ -137,6 +152,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <button
             type="submit"
             disabled={isLoading}
+            onClick={() => console.log('Pulsante submit cliccato, isLoading:', isLoading)}
             className={`w-full bg-gradient-to-r from-primary-500 to-accent-500 text-white py-3 px-6 rounded-xl font-medium hover:from-primary-600 hover:to-accent-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center space-x-2 group shadow-lg hover:shadow-xl transform hover:scale-105 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
             <span className="text-sm sm:text-base">{isLoading ? 'Accesso in corso...' : 'Accedi'}</span>
