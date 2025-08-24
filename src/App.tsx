@@ -16,6 +16,7 @@ interface User {
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
   useEffect(() => {
     // Test di connettività Firebase
@@ -24,8 +25,9 @@ function App() {
     console.log('DB object:', db);
     console.log('Firebase config:', auth.app.options);
     
-    // Sottoscrizione allo stato di autenticazione
-    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
+    try {
+      // Sottoscrizione allo stato di autenticazione
+      const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       console.log('Stato autenticazione cambiato:', authUser ? 'Utente autenticato' : 'Utente non autenticato');
       if (authUser) {
         // L'utente è autenticato
@@ -67,6 +69,15 @@ function App() {
     
     // Cleanup della sottoscrizione quando il componente viene smontato
     return () => unsubscribe();
+    } catch (error: any) {
+      console.error('Errore Firebase durante l\'inizializzazione:', error);
+      if (error.code === 'auth/api-key-not-valid' || error.message?.includes('api-key-not-valid')) {
+        setFirebaseError('Configurazione Firebase non valida. Verifica che le variabili d\'ambiente siano configurate correttamente su Vercel.');
+      } else {
+        setFirebaseError(`Errore Firebase: ${error.message}`);
+      }
+      setLoading(false);
+    }
   }, []);
 
   const handleLogin = async (userData: User) => {
@@ -116,9 +127,16 @@ function App() {
       
       // L'utente verrà impostato dall'effetto onAuthStateChanged
       console.log('=== FINE PROCESSO DI LOGIN - SUCCESSO ===');
-    } catch (error) {
+    } catch (error: any) {
       console.error('=== FINE PROCESSO DI LOGIN - ERRORE ===');
       console.error('Errore durante l\'autenticazione:', error);
+      
+      // Gestisci errori specifici di Firebase
+      if (error.code === 'auth/api-key-not-valid' || error.message?.includes('api-key-not-valid')) {
+        setFirebaseError('Configurazione Firebase non valida. Verifica che le variabili d\'ambiente siano configurate correttamente su Vercel.');
+        return; // Non rilanciare l'errore, mostra invece il messaggio di errore
+      }
+      
       throw error; // Rilancia l'errore per permettere al componente Login di gestirlo
     }
   };
@@ -131,6 +149,29 @@ function App() {
       console.error('Errore durante il logout:', error);
     }
   };
+
+  if (firebaseError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-red-700 mb-4">Errore di Configurazione</h2>
+          <p className="text-gray-700 mb-6">{firebaseError}</p>
+          <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded">
+            <p className="font-semibold mb-2">Variabili d'ambiente richieste su Vercel:</p>
+            <ul className="text-left space-y-1">
+              <li>• VITE_FIREBASE_API_KEY</li>
+              <li>• VITE_FIREBASE_AUTH_DOMAIN</li>
+              <li>• VITE_FIREBASE_PROJECT_ID</li>
+              <li>• VITE_FIREBASE_STORAGE_BUCKET</li>
+              <li>• VITE_FIREBASE_MESSAGING_SENDER_ID</li>
+              <li>• VITE_FIREBASE_APP_ID</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
