@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Login } from './components/Login';
 import { Dashboard } from './components/Dashboard';
+import ErrorBoundary from './components/ErrorBoundary';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -142,17 +143,19 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50">
-      <Header user={user} onLogout={handleLogout} />
-      
-      <main className="container mx-auto px-4 py-8">
-        {user ? (
-          <Dashboard user={user} />
-        ) : (
-          <Login onLogin={handleLogin} />
-        )}
-      </main>
-    </div>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50">
+        <Header user={user} onLogout={handleLogout} />
+        
+        <main className="container mx-auto px-4 py-8">
+          {user ? (
+            <Dashboard user={user} />
+          ) : (
+            <Login onLogin={handleLogin} />
+          )}
+        </main>
+      </div>
+    </ErrorBoundary>
   );
 }
 
