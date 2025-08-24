@@ -4,12 +4,12 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
 // La tua configurazione Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyDQmm5kJL_-JE9LSdCKrZXo-NQeTHEiL7c",
-  authDomain: "piano-alimentare-app-c0a5e.firebaseapp.com",
-  projectId: "piano-alimentare-app-c0a5e",
-  storageBucket: "piano-alimentare-app-c0a5e.appspot.com",
-  messagingSenderId: "1045389721230",
-  appId: "1:1045389721230:web:f5c5e0b7d1f1c3a5f5c5e0"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Inizializza Firebase

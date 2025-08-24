@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Upload, Trash2, Edit3, Save, X, CheckCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db, auth } from '../firebase';
-import { collection, doc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 
 interface FoodItem {
   id: string;
@@ -284,6 +284,7 @@ export const Foods: React.FC = () => {
   };
 
   return (
+    <>
     <div className="space-y-8">
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
@@ -699,14 +700,15 @@ export const Foods: React.FC = () => {
             </div>
           ))}
         </div>
-          
+        
         {filteredFoods.length === 0 && (
           <div className="text-center py-8 text-sage-500">
             {foods.length === 0 ? 'Nessun alimento presente. Carica un file Excel o aggiungi manualmente.' : 'Nessun alimento trovato con i filtri selezionati.'}
           </div>
         )}
+        
       </div>
       </div>
-    </div>
+    </>
   );
 };
