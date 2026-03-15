@@ -79,24 +79,24 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   return (
     <div className="max-w-md mx-auto mt-8 sm:mt-16 animate-fade-in px-4 sm:px-0">
-      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 sm:p-8">
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-r from-primary-500 to-accent-500 rounded-xl mx-auto mb-4 flex items-center justify-center shadow-lg">
-            <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+      <div className="md3-card p-6 sm:p-10 border border-sage-200 dark:border-sage-800">
+        <div className="text-center mb-10">
+          <div className="w-20 h-20 bg-primary-600 dark:bg-primary-500 rounded-md3-medium mx-auto mb-6 flex items-center justify-center shadow-md3-3">
+            <Lock className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-sage-900 mb-2">Accesso Piano Alimentare</h2>
-          <p className="text-sage-600 text-sm sm:text-base">Inserisci i tuoi dati per continuare</p>
+          <h2 className="text-3xl font-black text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Bilanciamo AI</h2>
+          <p className="text-sage-600 dark:text-sage-400 font-medium">La tua nutrizione, semplificata dall'AI</p>
         </div>
 
         {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-red-700 text-sm">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md3-small p-4 mb-6 text-red-700 dark:text-red-300 text-sm font-medium animate-shake">
               {error}
             </div>
           )}
           
-          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6" autoComplete="off">
-          <div>
-            <label className="block text-sm font-medium text-sage-700 mb-2">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">
               Nome completo
             </label>
             <div className="relative">
@@ -104,17 +104,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full pl-10 pr-4 py-3 bg-white/60 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 shadow-sm focus:shadow-md text-sm sm:text-base"
+                className="w-full pl-12 pr-4 py-4 bg-sage-50 dark:bg-surface-container-dark border-none rounded-md3-small focus:ring-2 focus:ring-primary-500 transition-all text-sage-900 dark:text-sage-50"
                 placeholder="Il tuo nome"
                 autoComplete="new-name"
                 required
               />
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-sage-400" />
+              <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-sage-400" />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-sage-700 mb-2">
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">
               Email
             </label>
             <div className="relative">
@@ -122,17 +122,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full pl-10 pr-4 py-3 bg-white/60 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 shadow-sm focus:shadow-md text-sm sm:text-base"
-                placeholder="la-tua-email@esempio.com"
+                className="w-full pl-12 pr-4 py-4 bg-sage-50 dark:bg-surface-container-dark border-none rounded-md3-small focus:ring-2 focus:ring-primary-500 transition-all text-sage-900 dark:text-sage-50"
+                placeholder="email@esempio.com"
                 autoComplete="new-email"
                 required
               />
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-sage-400" />
+              <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-sage-400" />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-sage-700 mb-2">
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">
               Password
             </label>
             <div className="relative">
@@ -140,29 +140,28 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full pl-10 pr-4 py-3 bg-white/60 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 shadow-sm focus:shadow-md text-sm sm:text-base"
+                className="w-full pl-12 pr-4 py-4 bg-sage-50 dark:bg-surface-container-dark border-none rounded-md3-small focus:ring-2 focus:ring-primary-500 transition-all text-sage-900 dark:text-sage-50"
                 placeholder="La tua password"
                 autoComplete="new-password"
                 required
               />
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-sage-400" />
+              <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-sage-400" />
             </div>
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            onClick={() => console.log('Pulsante submit cliccato, isLoading:', isLoading)}
-            className={`w-full bg-gradient-to-r from-primary-500 to-accent-500 text-white py-3 px-6 rounded-xl font-medium hover:from-primary-600 hover:to-accent-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center space-x-2 group shadow-lg hover:shadow-xl transform hover:scale-105 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+            className={`w-full bg-primary-600 dark:bg-primary-500 text-white py-4 px-6 rounded-full font-bold hover:shadow-md3-3 focus:outline-none focus:ring-4 focus:ring-primary-200 transition-all flex items-center justify-center space-x-2 group shadow-md3-2 transform active:scale-95 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            <span className="text-sm sm:text-base">{isLoading ? 'Accesso in corso...' : 'Accedi'}</span>
-            {!isLoading && <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform duration-200" />}
+            <span className="text-lg">{isLoading ? 'Accesso in corso...' : 'Inizia Ora'}</span>
+            {!isLoading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
           </button>
         </form>
 
-        <div className="mt-4 sm:mt-6 text-center">
-          <p className="text-xs text-sage-500">
-            I dati vengono salvati in modo sicuro su Firebase
+        <div className="mt-8 text-center">
+          <p className="text-[10px] text-sage-400 uppercase font-black tracking-widest">
+            Powered by Google Firebase & Claude AI
           </p>
         </div>
       </div>

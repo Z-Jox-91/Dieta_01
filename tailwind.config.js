@@ -1,13 +1,29 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Inter', 'Roboto', 'system-ui', 'sans-serif'],
       },
       colors: {
+        // MD3 Light/Dark Tones
         primary: {
+          0: '#000000',
+          10: '#00210e',
+          20: '#00391c',
+          30: '#00522b',
+          40: '#006d3b',
+          50: '#00894c',
+          60: '#00a65d',
+          70: '#00c46f',
+          80: '#00e381',
+          90: '#3eff94',
+          95: '#baffc8',
+          99: '#f7ffee',
+          100: '#ffffff',
+          // Legacy mappings
           50: '#f0fdf4',
           100: '#dcfce7',
           200: '#bbf7d0',
@@ -18,6 +34,14 @@ export default {
           700: '#15803d',
           800: '#166534',
           900: '#14532d',
+        },
+        surface: {
+          light: '#fdfdfd',
+          dark: '#1a1c1e',
+          container: {
+            light: '#f3f4f9',
+            dark: '#2d3033'
+          }
         },
         accent: {
           50: '#eff6ff',
@@ -44,10 +68,22 @@ export default {
           900: '#2d332d',
         }
       },
+      borderRadius: {
+        'md3': '28px',
+        'md3-small': '12px',
+        'md3-medium': '16px',
+        'md3-large': '24px',
+      },
+      boxShadow: {
+        'md3-1': '0 1px 2px 0 rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15)',
+        'md3-2': '0 1px 2px 0 rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15)',
+        'md3-3': '0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px 0 rgba(0, 0, 0, 0.3)',
+      },
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-in-out',
-        'slide-up': 'slideUp 0.3s ease-out',
+        'fade-in': 'fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+        'slide-up': 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         'pulse-soft': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'bounce-slow': 'bounce 3s infinite',
       },
       keyframes: {
         fadeIn: {

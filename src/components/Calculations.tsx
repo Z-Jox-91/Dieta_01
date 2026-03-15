@@ -259,140 +259,138 @@ export const Calculations: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-6 sm:space-y-10">
       {/* Input Form */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20 shadow-lg">
-        <div className="flex items-center space-x-3 mb-4 sm:mb-6">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-primary-500 to-accent-500 rounded-lg flex items-center justify-center">
-            <Calculator className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+      <div className="md3-card p-6 sm:p-10 border border-sage-200 dark:border-sage-800">
+        <div className="flex items-center space-x-4 mb-8">
+          <div className="w-12 h-12 bg-primary-600 dark:bg-primary-500 rounded-md3-medium flex items-center justify-center shadow-md3-2">
+            <Calculator className="w-6 h-6 text-white" />
           </div>
-          <h2 className="text-lg sm:text-xl font-bold text-sage-900">Dati Personali</h2>
+          <div>
+            <h2 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Dati Personali</h2>
+            <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Parametri Biometrici</p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-          <div>
-            <label htmlFor="age" className="block text-sm font-medium text-sage-700 mb-2">Età</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <label htmlFor="age" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Età</label>
             <input
               type="number"
               id="age"
               value={data.age || ''}
               onChange={(e) => setData({...data, age: parseInt(e.target.value) || 0})}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white/60 shadow-sm focus:shadow-md text-xs sm:text-sm lg:text-base"
+              className="md3-input w-full"
               placeholder="Anni"
             />
           </div>
           
-          <div>
-            <label htmlFor="height" className="block text-sm font-medium text-sage-700 mb-2">Altezza</label>
+          <div className="space-y-2">
+            <label htmlFor="height" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Altezza (cm)</label>
             <input
               type="number"
               id="height"
               value={data.height || ''}
               onChange={(e) => setData({...data, height: parseInt(e.target.value) || 0})}
-              className="w-full px-4 py-3 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white/60 shadow-sm focus:shadow-md text-sm sm:text-base"
-              placeholder="cm"
+              className="md3-input w-full"
+              placeholder="175"
             />
           </div>
           
-          <div>
-            <label htmlFor="weight" className="block text-sm font-medium text-sage-700 mb-2">Peso</label>
+          <div className="space-y-2">
+            <label htmlFor="weight" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Peso (kg)</label>
             <input
               type="number"
               id="weight"
               value={data.weight || ''}
               onChange={(e) => setData({...data, weight: parseInt(e.target.value) || 0})}
-              className="w-full px-4 py-3 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white/60 shadow-sm focus:shadow-md text-sm sm:text-base"
-              placeholder="kg"
+              className="md3-input w-full"
+              placeholder="70"
             />
           </div>
           
-          <div>
-            <label htmlFor="gender" className="block text-sm font-medium text-sage-700 mb-2">Genere</label>
+          <div className="space-y-2">
+            <label htmlFor="gender" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Genere</label>
             <select
               id="gender"
               value={data.gender}
               onChange={(e) => setData({...data, gender: e.target.value as 'female' | 'male'})}
-              className="w-full px-4 py-3 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white/60 shadow-sm focus:shadow-md text-sm sm:text-base"
+              className="md3-input w-full appearance-none"
             >
               <option value="female">Donna</option>
               <option value="male">Uomo</option>
             </select>
           </div>
           
-          <div>
-            <label htmlFor="laf" className="block text-sm font-medium text-sage-700 mb-2">LAF</label>
+          <div className="space-y-2">
+            <label htmlFor="laf" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">LAF (Livello Attività)</label>
             <input
               type="number"
               id="laf"
               value={data.laf || ''}
               onChange={(e) => {
                 const value = parseFloat(e.target.value);
-                // Limita il valore tra 1.45 e 2.1
                 const validValue = Math.min(Math.max(value, 1.45), 2.1);
-                // Arrotonda a incrementi di 0.05
                 const roundedValue = Math.round(validValue * 20) / 20;
                 setData({...data, laf: roundedValue});
               }}
               step="0.05"
               min="1.45"
               max="2.1"
-              className="w-full px-4 py-3 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white/60 shadow-sm focus:shadow-md text-sm sm:text-base"
-              placeholder="LAF"
+              className="md3-input w-full"
+              placeholder="1.45 - 2.1"
             />
           </div>
           
-          <div>
-            <label htmlFor="y" className="block text-sm font-medium text-sage-700 mb-2">Grammi proteici per kg</label>
+          <div className="space-y-2">
+            <label htmlFor="y" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Proteine per kg</label>
             <input
               type="number"
               id="y"
               value={data.y || ''}
               onChange={(e) => {
                 const value = parseFloat(e.target.value);
-                // Limita il valore tra 0.8 e 3
                 const validValue = Math.min(Math.max(value, 0.8), 3);
                 setData({...data, y: validValue});
               }}
               step="0.1"
               min="0.8"
               max="3"
-              className="w-full px-4 py-3 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white/60 shadow-sm focus:shadow-md text-sm sm:text-base"
-              placeholder="Grammi proteici per kg"
+              className="md3-input w-full"
+              placeholder="0.8 - 3.0"
             />
           </div>
           
-          <div>
-            <label htmlFor="dailyDeficit" className="block text-sm font-medium text-sage-700 mb-2">Deficit Giornaliero</label>
+          <div className="space-y-2">
+            <label htmlFor="dailyDeficit" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Deficit (kcal)</label>
             <input
               type="number"
               id="dailyDeficit"
               value={data.dailyDeficit || ''}
               onChange={(e) => setData({...data, dailyDeficit: parseInt(e.target.value) || 0})}
-              className="w-full px-4 py-3 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white/60 shadow-sm focus:shadow-md text-sm sm:text-base"
-              placeholder="kcal"
+              className="md3-input w-full"
+              placeholder="200"
             />
           </div>
         </div>
         
-        <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <div className="mt-10 flex flex-col sm:flex-row gap-4">
           <button
             onClick={handleCalculate}
             disabled={!isFormValid}
-            className={`px-6 py-3 rounded-xl flex items-center justify-center space-x-2 font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base ${
-              isFormValid 
-                ? 'bg-gradient-to-r from-primary-500 to-accent-500 text-white hover:from-primary-600 hover:to-accent-600' 
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            className={`md3-button-primary flex-1 flex items-center justify-center space-x-2 ${
+              !isFormValid ? 'opacity-50 grayscale cursor-not-allowed' : ''
             }`}
           >
-            <Calculator className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span>Calcola</span>
+            <Calculator className="w-5 h-5" />
+            <span>Calcola Risultati</span>
           </button>
           
           <button
             onClick={handleReset}
-            className="px-6 py-3 bg-white text-sage-700 rounded-xl border border-sage-200 hover:bg-sage-50 hover:shadow-md flex items-center justify-center space-x-2 font-medium transition-all duration-200 text-sm sm:text-base"
+            className="px-8 py-3 bg-sage-100 dark:bg-surface-container-dark text-sage-700 dark:text-sage-300 rounded-full font-bold hover:bg-sage-200 dark:hover:bg-surface-dark transition-all flex items-center justify-center space-x-2"
           >
-            <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
+            <RotateCcw className="w-5 h-5" />
             <span>Reset</span>
           </button>
         </div>
@@ -400,95 +398,88 @@ export const Calculations: React.FC = () => {
       
       {/* Results Section */}
       {isCalculated && results && (
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20 shadow-lg">
-          <div className="flex items-center space-x-3 mb-4 sm:mb-6">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-accent-500 to-primary-500 rounded-lg flex items-center justify-center">
-              <Target className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+        <div className="md3-card p-6 sm:p-10 border border-primary-100 dark:border-primary-900/30">
+          <div className="flex items-center space-x-4 mb-8">
+            <div className="w-12 h-12 bg-accent-500 rounded-md3-medium flex items-center justify-center shadow-md3-2">
+              <Target className="w-6 h-6 text-white" />
             </div>
-            <h3 className="text-lg sm:text-xl font-bold text-sage-900">Risultati</h3>
+            <div>
+              <h3 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Analisi Nutrizionale</h3>
+              <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Target Suggeriti</p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            <div className="bg-gradient-to-br from-primary-50 to-accent-50 p-4 rounded-xl border border-primary-100">
-              <p className="text-sm text-sage-600 mb-1">BMI (Indice di Massa Corporea)</p>
-              <p className="text-xl sm:text-2xl font-bold text-sage-900">{results.bmi.toFixed(1)}</p>
-              <p className="text-xs text-sage-500 mt-1">{getBmiCategory(results.bmi)}</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
+              <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">BMI</p>
+              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.bmi.toFixed(1)}</p>
+              <div className="mt-3 inline-block px-3 py-1 bg-white dark:bg-surface-dark rounded-full text-xs font-bold text-sage-600 dark:text-sage-400 border border-primary-100 dark:border-primary-800">
+                {getBmiCategory(results.bmi)}
+              </div>
             </div>
-            <div className="bg-gradient-to-br from-accent-50 to-primary-50 p-4 rounded-xl border border-accent-100">
-              <p className="text-sm text-sage-600 mb-1">Peso Ideale</p>
-              <p className="text-xl sm:text-2xl font-bold text-sage-900">{results.idealWeight.toFixed(1)} kg</p>
+
+            <div className="bg-accent-50 dark:bg-accent-900/10 p-6 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
+              <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">Peso Ideale</p>
+              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.idealWeight.toFixed(1)} <span className="text-lg">kg</span></p>
             </div>
-            <div className="bg-gradient-to-br from-primary-50 to-accent-50 p-4 rounded-xl border border-primary-100">
-              <p className="text-sm text-sage-600 mb-1">Metabolismo Basale</p>
-              <p className="text-xl sm:text-2xl font-bold text-sage-900">{Math.round(results.basalMetabolism)} kcal</p>
+
+            <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
+              <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">MB</p>
+              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.basalMetabolism)} <span className="text-lg">kcal</span></p>
             </div>
-            <div className="bg-gradient-to-br from-accent-50 to-primary-50 p-4 rounded-xl border border-accent-100">
-              <p className="text-sm text-sage-600 mb-1">Metabolismo Giornaliero</p>
-              <p className="text-xl sm:text-2xl font-bold text-sage-900">{Math.round(results.dailyMetabolism)} kcal</p>
+
+            <div className="bg-accent-50 dark:bg-accent-900/10 p-6 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
+              <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">TDEE</p>
+              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.dailyMetabolism)} <span className="text-lg">kcal</span></p>
             </div>
-            <div className="bg-gradient-to-br from-primary-50 to-accent-50 p-4 rounded-xl border border-primary-100">
-              <p className="text-sm text-sage-600 mb-1">Deficit Giornaliero</p>
-              <p className="text-xl sm:text-2xl font-bold text-sage-900">{Math.round(results.dailyDeficit)} kcal</p>
+
+            <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
+              <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">Deficit</p>
+              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.dailyDeficit)} <span className="text-lg">kcal</span></p>
             </div>
-            <div>
-              <p className="text-sm text-sage-600">Deficit Settimanale</p>
-              <p className="text-lg font-bold text-sage-900">{Math.round(results.weeklyDeficit)} kcal</p>
-            </div>
-            <div>
-              <p className="text-sm text-sage-600">Calorie Settimanali</p>
-              <p className="text-lg font-bold text-sage-900">{Math.round(results.weeklyCalories)} kcal</p>
-            </div>
-            <div>
-              <p className="text-sm text-sage-600">RDA Proteine Giornaliero</p>
-              <p className="text-lg font-bold text-sage-900">{results.dailyProteinRda.toFixed(1)} g</p>
-            </div>
-            <div>
-              <p className="text-sm text-sage-600">RDA Proteine Settimanale</p>
-              <p className="text-lg font-bold text-sage-900">{results.weeklyProteinRda.toFixed(1)} g</p>
+
+            <div className="bg-accent-50 dark:bg-accent-900/10 p-6 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
+              <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">Target Proteico</p>
+              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.dailyProteinRda.toFixed(1)} <span className="text-lg">g</span></p>
             </div>
           </div>
           
           {/* Tabella limiti calorie giornalieri */}
-          <div className="mt-6 bg-white/90 rounded-xl p-6 border border-sage-200 shadow-sm">
-            <h3 className="text-lg font-semibold text-sage-800 mb-4 flex items-center">
-              <Target className="w-5 h-5 text-primary-600 mr-2" />
-              Limiti Calorie Giornalieri
+          <div className="mt-10 md3-card bg-surface-container-light dark:bg-surface-container-dark p-6 sm:p-8 border border-sage-200 dark:border-sage-800 shadow-none">
+            <h3 className="text-xl font-black text-sage-900 dark:text-sage-50 mb-6 flex items-center">
+              <Target className="w-6 h-6 text-primary-600 dark:text-primary-400 mr-3" />
+              Pianificazione Settimanale
             </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse rounded-lg overflow-hidden">
+            <div className="overflow-x-auto rounded-md3-medium border border-sage-200 dark:border-sage-800">
+              <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-gradient-to-r from-primary-100 to-accent-100">
-                    <th className="px-4 py-3 text-left text-sage-700 font-semibold">Giorno</th>
-                    <th className="px-4 py-3 text-left text-sage-700 font-semibold">Kcal Limite</th>
+                  <tr className="bg-primary-100 dark:bg-primary-900/30">
+                    <th className="px-6 py-4 text-left text-primary-900 dark:text-primary-100 font-black uppercase tracking-widest text-xs">Giorno</th>
+                    <th className="px-6 py-4 text-left text-primary-900 dark:text-primary-100 font-black uppercase tracking-widest text-xs">Target Kcal</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {daysOfWeek.map((day, index) => (
-                    <tr key={day} className={`hover:bg-sage-50 ${index % 2 === 0 ? 'bg-white' : 'bg-sage-50/50'}`}>
-                      <td className="px-4 py-3 border-t border-sage-200">{day}</td>
-                      <td className="px-4 py-3 border-t border-sage-200">
+                <tbody className="divide-y divide-sage-200 dark:divide-sage-800">
+                  {daysOfWeek.map((day) => (
+                    <tr key={day} className="bg-white dark:bg-surface-dark hover:bg-sage-50 dark:hover:bg-surface-container-dark transition-colors">
+                      <td className="px-6 py-4 text-sage-700 dark:text-sage-300 font-bold">{day}</td>
+                      <td className="px-6 py-4">
                         <input
                           type="number"
                           value={dailyCalorieLimits[day] || ''}
                           onChange={(e) => handleDailyLimitChange(day, e.target.value)}
-                          className="w-full px-3 py-2 border border-sage-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                          className="w-full max-w-[150px] px-4 py-2 bg-sage-50 dark:bg-surface-container-dark border-none rounded-md3-small focus:ring-2 focus:ring-primary-500 transition-all font-bold text-sage-900 dark:text-sage-50"
                           placeholder="Kcal"
                         />
                       </td>
                     </tr>
                   ))}
-                  <tr className="bg-primary-100 font-medium">
-                    <td className="px-4 py-3 border-t border-sage-200">Totale Settimanale</td>
-                    <td className="px-4 py-3 border-t border-sage-200 font-bold">{getTotalWeeklyLimit()} kcal</td>
+                  <tr className="bg-primary-50 dark:bg-primary-900/20 font-bold">
+                    <td className="px-6 py-4 text-primary-900 dark:text-primary-100">Totale Settimanale</td>
+                    <td className="px-6 py-4 text-primary-900 dark:text-primary-100 font-black text-xl">{getTotalWeeklyLimit()} <span className="text-sm">kcal</span></td>
                   </tr>
-                  <tr className="bg-accent-100">
-                    <td className="px-4 py-3 border-t border-sage-200">Calorie Settimanali Calcolate</td>
-                    <td className="px-4 py-3 border-t border-sage-200 font-bold">{Math.round(results.weeklyCalories)} kcal</td>
-                  </tr>
-                  <tr className="bg-gradient-to-r from-primary-50 to-accent-50 font-medium">
-                    <td className="px-4 py-3 border-t border-sage-200">Differenza</td>
-                    <td className="px-4 py-3 border-t border-sage-200 font-bold">
-                      {getTotalWeeklyLimit() - Math.round(results.weeklyCalories)} kcal
-                    </td>
+                  <tr className="bg-accent-50 dark:bg-accent-900/20 font-bold">
+                    <td className="px-6 py-4 text-accent-900 dark:text-accent-100">Calcolo Teorico</td>
+                    <td className="px-6 py-4 text-accent-900 dark:text-accent-100 font-black text-xl">{Math.round(results.weeklyCalories)} <span className="text-sm">kcal</span></td>
                   </tr>
                 </tbody>
               </table>
@@ -496,6 +487,8 @@ export const Calculations: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
 
 
     </div>

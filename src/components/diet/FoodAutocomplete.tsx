@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { db, auth } from '../../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 
 // Definizione dell'interfaccia per i dati nutrizionali
 interface NutritionalData {
@@ -35,8 +35,9 @@ const loadFoodDatabase = async () => {
   if (!auth.currentUser) return;
   
   try {
-    const foodsCollection = collection(db, `users/${auth.currentUser.uid}/foods`);
-    const foodsSnapshot = await getDocs(foodsCollection);
+    const foodsCollection = collection(db, 'alimenti');
+    const q = query(foodsCollection, orderBy('name', 'asc'));
+    const foodsSnapshot = await getDocs(q);
     const foodsList = foodsSnapshot.docs.map(doc => doc.data() as FoodItem);
     
     if (foodsList.length > 0) {
@@ -44,19 +45,6 @@ const loadFoodDatabase = async () => {
     }
   } catch (error) {
     console.error('Errore nel caricamento del database alimentare da Firestore:', error);
-    
-    // Fallback a localStorage se Firestore fallisce
-    try {
-      const savedDatabase = localStorage.getItem('piano_alimentare_food_database');
-      if (savedDatabase) {
-        const parsedDatabase = JSON.parse(savedDatabase);
-        if (Array.isArray(parsedDatabase) && parsedDatabase.length > 0) {
-          foodDatabase = parsedDatabase;
-        }
-      }
-    } catch (localError) {
-      console.error('Errore nel caricamento del database alimentare da localStorage:', localError);
-    }
   }
 };
 

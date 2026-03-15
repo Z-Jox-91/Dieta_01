@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
 // Verifica che tutte le variabili d'ambiente Firebase siano configurate
 const requiredEnvVars = [
@@ -39,6 +39,19 @@ const app = initializeApp(firebaseConfig);
 // Esporta i servizi Firebase
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Abilita la persistenza offline
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    // Multiple tabs open, persistence can only be enabled
+    // in one tab at a a time.
+    console.warn('Persistenza Firestore: Multi-tab non supportato');
+  } else if (err.code === 'unimplemented') {
+    // The current browser does not support all of the
+    // features required to enable persistence
+    console.warn('Persistenza Firestore: Browser non supportato');
+  }
+});
 
 // Abilita la modalità di debug per Firebase Auth
 if (import.meta.env.DEV) {

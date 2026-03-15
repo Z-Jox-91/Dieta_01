@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Upload, Trash2, Edit3, Save, X, CheckCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db, auth } from '../firebase';
-import { collection, doc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
 
-interface FoodItem {
+export interface FoodItem {
   id: string;
   name: string;
   category: 'CRB' | 'PRT' | 'LPD';
@@ -12,6 +12,9 @@ interface FoodItem {
   carbs: number;
   proteins: number;
   fats: number;
+  unit: string;
+  createdAt: any;
+  creatorId: string;
 }
 
 interface NewFoodForm {
@@ -20,6 +23,7 @@ interface NewFoodForm {
   carbs: number;
   proteins: number;
   fats: number;
+  unit: string;
 }
 
 export const Foods: React.FC = () => {
@@ -31,94 +35,87 @@ export const Foods: React.FC = () => {
     calories: 0,
     carbs: 0,
     proteins: 0,
-    fats: 0
+    fats: 0,
+    unit: 'g'
   });
   const [editFood, setEditFood] = useState<NewFoodForm>({
     name: '',
     calories: 0,
     carbs: 0,
     proteins: 0,
-    fats: 0
+    fats: 0,
+    unit: 'g'
   });
   const [isExcelLoaded, setIsExcelLoaded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<'all' | 'CRB' | 'PRT' | 'LPD'>('all');
 
-  // Carica i dati da Firestore all'avvio
+  // Carica i dati da Firestore all'avvio con onSnapshot per real-time sync
   useEffect(() => {
-    const loadFoods = async () => {
-      if (!auth.currentUser) return;
-      
-      try {
-        // Prima controlla se ci sono dati in localStorage da migrare
-        const savedFoods = localStorage.getItem('piano_alimentare_food_database');
-        if (savedFoods) {
-          try {
-            const parsedFoods = JSON.parse(savedFoods);
-            if (Array.isArray(parsedFoods) && parsedFoods.length > 0) {
-              // Migra i dati da localStorage a Firestore
-              await migrateLocalStorageToFirestore(parsedFoods);
-              // Rimuovi i dati da localStorage dopo la migrazione
-              localStorage.removeItem('piano_alimentare_food_database');
-            }
-          } catch (error) {
-            console.error('Errore nella migrazione del database alimentare:', error);
+    if (!auth.currentUser) return;
+
+    const foodsCollection = collection(db, 'alimenti');
+    const q = query(foodsCollection, orderBy('name', 'asc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const foodsList = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as FoodItem[];
+      setFoods(foodsList);
+      if (foodsList.length > 0) setIsExcelLoaded(true);
+    }, (error) => {
+      console.error('Errore nel caricamento del database alimentare:', error);
+    });
+
+    // Migrazione legacy se necessaria
+    const checkMigration = async () => {
+      const savedFoods = localStorage.getItem('piano_alimentare_food_database');
+      if (savedFoods) {
+        try {
+          const parsedFoods = JSON.parse(savedFoods);
+          if (Array.isArray(parsedFoods) && parsedFoods.length > 0) {
+            await migrateToUnifiedDatabase(parsedFoods);
+            localStorage.removeItem('piano_alimentare_food_database');
           }
+        } catch (e) {
+          console.error('Errore migrazione localStorage:', e);
         }
-        
-        // Carica i dati da Firestore
-        const foodsCollection = collection(db, `users/${auth.currentUser.uid}/foods`);
-        const foodsSnapshot = await getDocs(foodsCollection);
-        const foodsList = foodsSnapshot.docs.map(doc => doc.data() as FoodItem);
-        
-        if (foodsList.length > 0) {
-          setFoods(foodsList);
-          setIsExcelLoaded(true);
-        }
-      } catch (error) {
-        console.error('Errore nel caricamento del database alimentare da Firestore:', error);
+      }
+      
+      // Controlla anche la vecchia collezione utente
+      const userFoodsCollection = collection(db, `users/${auth.currentUser?.uid}/foods`);
+      const userFoodsSnapshot = await getDocs(userFoodsCollection);
+      if (!userFoodsSnapshot.empty) {
+        const userFoods = userFoodsSnapshot.docs.map(doc => doc.data() as FoodItem);
+        await migrateToUnifiedDatabase(userFoods);
+        // Opzionale: pulisci la vecchia collezione dopo la migrazione
       }
     };
-    
-    loadFoods();
+
+    checkMigration();
+
+    return () => unsubscribe();
   }, []);
 
-  // Funzione per migrare i dati da localStorage a Firestore
-  const migrateLocalStorageToFirestore = async (foodsData: FoodItem[]) => {
+  const migrateToUnifiedDatabase = async (foodsData: any[]) => {
     if (!auth.currentUser) return;
-    
     try {
-      const batch = [];
       for (const food of foodsData) {
-        const foodRef = doc(db, `users/${auth.currentUser.uid}/foods/${food.id}`);
-        batch.push(setDoc(foodRef, food));
+        const foodId = food.id || `migrated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const foodRef = doc(db, 'alimenti', foodId);
+        await setDoc(foodRef, {
+          ...food,
+          unit: food.unit || 'g',
+          creatorId: auth.currentUser.uid,
+          createdAt: food.createdAt || new Date().toISOString()
+        }, { merge: true });
       }
-      await Promise.all(batch);
-      console.log('Migrazione dei dati alimentari completata con successo');
+      console.log('Migrazione completata');
     } catch (error) {
-      console.error('Errore durante la migrazione dei dati alimentari:', error);
+      console.error('Errore migrazione:', error);
     }
   };
-  
-  // Salva i dati in Firestore ogni volta che cambiano
-  useEffect(() => {
-    const saveFoodsToFirestore = async () => {
-      if (!auth.currentUser || foods.length === 0) return;
-      
-      try {
-        const batch = [];
-        for (const food of foods) {
-          const foodRef = doc(db, `users/${auth.currentUser.uid}/foods/${food.id}`);
-          batch.push(setDoc(foodRef, food));
-        }
-        await Promise.all(batch);
-      } catch (error) {
-        console.error('Errore nel salvataggio del database alimentare su Firestore:', error);
-      }
-    };
-    
-    saveFoodsToFirestore();
-  }, [foods]);
 
   // Calcola automaticamente la categoria basata sui macronutrienti
   const calculateCategory = (carbs: number, proteins: number, fats: number): 'CRB' | 'PRT' | 'LPD' => {
@@ -138,7 +135,7 @@ export const Foods: React.FC = () => {
   // Gestisce il caricamento del file Excel
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !auth.currentUser) return;
 
     try {
       const data = await file.arrayBuffer();
@@ -147,115 +144,135 @@ export const Foods: React.FC = () => {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const processedFoods: FoodItem[] = jsonData.map((row: any, index: number) => {
+      for (const row of jsonData as any[]) {
         const carbs = parseFloat(row.carbs || row.carboidrati || 0);
         const proteins = parseFloat(row.proteins || row.proteine || 0);
         const fats = parseFloat(row.fats || row.lipidi || 0);
+        const name = row.name || row.nome || '';
         
-        return {
-          id: `excel_${index}_${Date.now()}`,
-          name: row.name || row.nome || '',
+        if (!name) continue;
+
+        const foodId = `excel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const foodRef = doc(db, 'alimenti', foodId);
+        
+        await setDoc(foodRef, {
+          name,
           category: row.category || calculateCategory(carbs, proteins, fats),
           calories: parseFloat(row.calories || row.energia || 0),
           carbs,
           proteins,
-          fats
-        };
-      });
+          fats,
+          unit: row.unit || 'g',
+          creatorId: auth.currentUser.uid,
+          createdAt: new Date().toISOString()
+        });
+      }
 
-      setFoods(processedFoods);
-      setIsExcelLoaded(true);
-      alert(`Database alimentare caricato con successo! ${processedFoods.length} alimenti importati.`);
+      alert(`Database alimentare caricato con successo!`);
     } catch (error) {
       console.error('Errore durante l\'elaborazione del file Excel:', error);
-      alert('Errore durante l\'elaborazione del file Excel. Verifica il formato del file.');
+      alert('Errore durante l\'elaborazione del file Excel.');
     }
 
-    // Reset input file
     e.target.value = '';
   };
 
   // Aggiunge un nuovo alimento
-  const handleAddFood = () => {
-    if (!newFood.name.trim()) {
+  const handleAddFood = async () => {
+    if (!newFood.name.trim() || !auth.currentUser) {
       alert('Il nome dell\'alimento è obbligatorio');
       return;
     }
 
     const category = calculateCategory(newFood.carbs, newFood.proteins, newFood.fats);
-    const foodToAdd: FoodItem = {
-      id: `new_${Date.now()}`,
-      name: newFood.name.trim(),
-      category,
-      calories: newFood.calories,
-      carbs: newFood.carbs,
-      proteins: newFood.proteins,
-      fats: newFood.fats
-    };
+    const foodId = `new_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    try {
+      await setDoc(doc(db, 'alimenti', foodId), {
+        name: newFood.name.trim(),
+        category,
+        calories: newFood.calories,
+        carbs: newFood.carbs,
+        proteins: newFood.proteins,
+        fats: newFood.fats,
+        unit: newFood.unit,
+        creatorId: auth.currentUser.uid,
+        createdAt: new Date().toISOString()
+      });
 
-    setFoods(prev => [...prev, foodToAdd]);
-    setNewFood({ name: '', calories: 0, carbs: 0, proteins: 0, fats: 0 });
-    setIsAddingNew(false);
+      setNewFood({ name: '', calories: 0, carbs: 0, proteins: 0, fats: 0, unit: 'g' });
+      setIsAddingNew(false);
+    } catch (error) {
+      console.error('Errore aggiunta alimento:', error);
+      alert('Errore durante il salvataggio.');
+    }
   };
 
   // Elimina un alimento
-  const handleDeleteFood = async (id: string) => {
+  const handleDeleteFood = async (food: FoodItem) => {
+    if (!auth.currentUser) return;
+    
+    if (food.creatorId !== auth.currentUser.uid) {
+      alert('Puoi eliminare solo gli alimenti creati da te.');
+      return;
+    }
+
     if (confirm('Sei sicuro di voler eliminare questo alimento?')) {
       try {
-        if (auth.currentUser) {
-          // Elimina il documento da Firestore
-          const foodRef = doc(db, `users/${auth.currentUser.uid}/foods/${id}`);
-          await deleteDoc(foodRef);
-        }
-        // Aggiorna lo stato locale
-        setFoods(prev => prev.filter(food => food.id !== id));
+        await deleteDoc(doc(db, 'alimenti', food.id));
       } catch (error) {
-        console.error('Errore durante l\'eliminazione dell\'alimento:', error);
-        alert('Si è verificato un errore durante l\'eliminazione dell\'alimento. Riprova più tardi.');
+        console.error('Errore eliminazione:', error);
+        alert('Errore durante l\'eliminazione.');
       }
     }
   };
 
   // Inizia la modifica di un alimento
   const startEditing = (food: FoodItem) => {
+    if (food.creatorId !== auth.currentUser?.uid) {
+      alert('Puoi modificare solo gli alimenti creati da te.');
+      return;
+    }
     setEditingId(food.id);
     setEditFood({
       name: food.name,
       calories: food.calories,
       carbs: food.carbs,
       proteins: food.proteins,
-      fats: food.fats
+      fats: food.fats,
+      unit: food.unit || 'g'
     });
   };
 
   // Salva le modifiche
-  const saveEdit = () => {
-    if (!editFood.name.trim()) {
-      alert('Il nome dell\'alimento è obbligatorio');
-      return;
-    }
+  const saveEdit = async () => {
+    if (!editFood.name.trim() || !editingId || !auth.currentUser) return;
 
     const category = calculateCategory(editFood.carbs, editFood.proteins, editFood.fats);
-    setFoods(prev => prev.map(food => 
-      food.id === editingId 
-        ? {
-            ...food,
-            name: editFood.name.trim(),
-            category,
-            calories: editFood.calories,
-            carbs: editFood.carbs,
-            proteins: editFood.proteins,
-            fats: editFood.fats
-          }
-        : food
-    ));
-    setEditingId(null);
+    
+    try {
+      await setDoc(doc(db, 'alimenti', editingId), {
+        name: editFood.name.trim(),
+        category,
+        calories: editFood.calories,
+        carbs: editFood.carbs,
+        proteins: editFood.proteins,
+        fats: editFood.fats,
+        unit: editFood.unit,
+        // creatorId e createdAt rimangono invariati se usiamo merge o riscriviamo tutto
+      }, { merge: true });
+
+      setEditingId(null);
+    } catch (error) {
+      console.error('Errore modifica:', error);
+      alert('Errore durante il salvataggio.');
+    }
   };
 
   // Annulla la modifica
   const cancelEdit = () => {
     setEditingId(null);
-    setEditFood({ name: '', calories: 0, carbs: 0, proteins: 0, fats: 0 });
+    setEditFood({ name: '', calories: 0, carbs: 0, proteins: 0, fats: 0, unit: 'g' });
   };
 
   // Filtra gli alimenti
@@ -370,7 +387,7 @@ export const Foods: React.FC = () => {
         {isAddingNew && (
           <div className="p-6 border-b border-sage-200 bg-sage-50">
             <h3 className="text-lg font-semibold text-sage-900 mb-4">Nuovo Alimento</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
               <div className="sm:col-span-2 lg:col-span-2">
                 <label className="block text-sm font-medium text-sage-700 mb-1">Nome</label>
                 <input
@@ -382,7 +399,19 @@ export const Foods: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-sage-700 mb-1">Energia (kcal/100g)</label>
+                <label className="block text-sm font-medium text-sage-700 mb-1">Unità</label>
+                <select
+                  value={newFood.unit}
+                  onChange={(e) => setNewFood(prev => ({ ...prev, unit: e.target.value }))}
+                  className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="g">Grammi (g)</option>
+                  <option value="ml">Millilitri (ml)</option>
+                  <option value="unità">Unità</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-sage-700 mb-1">Energia (kcal/100 o u)</label>
                 <input
                   type="number"
                   value={newFood.calories}
@@ -393,7 +422,7 @@ export const Foods: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-sage-700 mb-1">Carboidrati (g/100g)</label>
+                <label className="block text-sm font-medium text-sage-700 mb-1">Carboidrati (g/100 o u)</label>
                 <input
                   type="number"
                   value={newFood.carbs}
@@ -404,7 +433,7 @@ export const Foods: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-sage-700 mb-1">Proteine (g/100g)</label>
+                <label className="block text-sm font-medium text-sage-700 mb-1">Proteine (g/100 o u)</label>
                 <input
                   type="number"
                   value={newFood.proteins}
@@ -415,7 +444,7 @@ export const Foods: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-sage-700 mb-1">Lipidi (g/100g)</label>
+                <label className="block text-sm font-medium text-sage-700 mb-1">Lipidi (g/100 o u)</label>
                 <input
                   type="number"
                   value={newFood.fats}
@@ -437,7 +466,7 @@ export const Foods: React.FC = () => {
               <button
                 onClick={() => {
                   setIsAddingNew(false);
-                  setNewFood({ name: '', calories: 0, carbs: 0, proteins: 0, fats: 0 });
+                  setNewFood({ name: '', calories: 0, carbs: 0, proteins: 0, fats: 0, unit: 'g' });
                 }}
                 className="flex items-center space-x-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
               >
@@ -454,11 +483,12 @@ export const Foods: React.FC = () => {
             <thead className="bg-sage-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Nome</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Unità</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Categoria</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Energia (kcal/100g)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Carboidrati (g/100g)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Proteine (g/100g)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Lipidi (g/100g)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Energia (kcal)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Carboidrati (g)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Proteine (g)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Lipidi (g)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Azioni</th>
               </tr>
             </thead>
@@ -474,7 +504,27 @@ export const Foods: React.FC = () => {
                         className="w-full px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                     ) : (
-                      <div className="text-sm font-medium text-sage-900">{food.name}</div>
+                      <div className="flex flex-col">
+                        <div className="text-sm font-medium text-sage-900">{food.name}</div>
+                        {food.creatorId === auth.currentUser?.uid && (
+                          <span className="text-[10px] text-primary-600 font-semibold uppercase">Creato da te</span>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sage-900">
+                    {editingId === food.id ? (
+                      <select
+                        value={editFood.unit}
+                        onChange={(e) => setEditFood(prev => ({ ...prev, unit: e.target.value }))}
+                        className="px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      >
+                        <option value="g">g</option>
+                        <option value="ml">ml</option>
+                        <option value="unità">unità</option>
+                      </select>
+                    ) : (
+                      food.unit || 'g'
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -558,13 +608,15 @@ export const Foods: React.FC = () => {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => startEditing(food)}
-                          className="text-primary-600 hover:text-primary-900"
+                          className={`text-primary-600 hover:text-primary-900 ${food.creatorId !== auth.currentUser?.uid ? 'opacity-30 cursor-not-allowed' : ''}`}
+                          disabled={food.creatorId !== auth.currentUser?.uid}
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteFood(food.id)}
-                          className="text-red-600 hover:text-red-900"
+                          onClick={() => handleDeleteFood(food)}
+                          className={`text-red-600 hover:text-red-900 ${food.creatorId !== auth.currentUser?.uid ? 'opacity-30 cursor-not-allowed' : ''}`}
+                          disabled={food.creatorId !== auth.currentUser?.uid}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -584,18 +636,37 @@ export const Foods: React.FC = () => {
               <div className="flex justify-between items-start mb-3">
                 <div className="flex-1">
                   {editingId === food.id ? (
-                    <input
-                      type="text"
-                      value={editFood.name}
-                      onChange={(e) => setEditFood(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium"
-                    />
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={editFood.name}
+                        onChange={(e) => setEditFood(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium"
+                      />
+                      <select
+                        value={editFood.unit}
+                        onChange={(e) => setEditFood(prev => ({ ...prev, unit: e.target.value }))}
+                        className="w-full px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      >
+                        <option value="g">g</option>
+                        <option value="ml">ml</option>
+                        <option value="unità">unità</option>
+                      </select>
+                    </div>
                   ) : (
-                    <h3 className="font-medium text-sage-900 text-lg">{food.name}</h3>
+                    <>
+                      <h3 className="font-medium text-sage-900 text-lg">{food.name}</h3>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCategoryColor(food.category)}`}>
+                          {getCategoryLabel(food.category)}
+                        </span>
+                        <span className="text-xs text-sage-500">Unità: {food.unit || 'g'}</span>
+                        {food.creatorId === auth.currentUser?.uid && (
+                          <span className="text-[10px] text-primary-600 font-semibold uppercase">Tuo</span>
+                        )}
+                      </div>
+                    </>
                   )}
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${getCategoryColor(food.category)}`}>
-                    {getCategoryLabel(food.category)}
-                  </span>
                 </div>
                 <div className="flex space-x-2 ml-4">
                   {editingId === food.id ? (
@@ -617,13 +688,15 @@ export const Foods: React.FC = () => {
                     <>
                       <button
                         onClick={() => startEditing(food)}
-                        className="p-2 text-primary-600 hover:text-primary-900 hover:bg-primary-50 rounded-lg transition-colors"
+                        className={`p-2 text-primary-600 hover:text-primary-900 hover:bg-primary-50 rounded-lg transition-colors ${food.creatorId !== auth.currentUser?.uid ? 'opacity-30' : ''}`}
+                        disabled={food.creatorId !== auth.currentUser?.uid}
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteFood(food.id)}
-                        className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
+                        onClick={() => handleDeleteFood(food)}
+                        className={`p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors ${food.creatorId !== auth.currentUser?.uid ? 'opacity-30' : ''}`}
+                        disabled={food.creatorId !== auth.currentUser?.uid}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

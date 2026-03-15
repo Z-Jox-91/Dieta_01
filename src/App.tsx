@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
-import { Login } from './components/Login';
 import { Dashboard } from './components/Dashboard';
+import { Diet } from './components/Diet';
+import { Foods } from './components/Foods';
+import { Recipes } from './components/Recipes';
+import { Login } from './components/Login';
+import { AIAssistant } from './components/AIAssistant';
 import ErrorBoundary from './components/ErrorBoundary';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -52,8 +56,19 @@ function App() {
                 email: authUser.email
               };
               setUser(newUser);
-              await setDoc(userDocRef, newUser);
-              console.log('Nuovo documento utente creato');
+              try {
+                await setDoc(userDocRef, newUser);
+                console.log('Nuovo documento utente creato');
+              } catch (firestoreError: any) {
+                console.error('Errore durante la scrittura su Firestore:', firestoreError);
+                if (firestoreError.code === 'permission-denied') {
+                  setFirebaseError('Errore di permessi Firestore. Verifica che le regole di sicurezza del database siano configurate correttamente.');
+                } else {
+                  setFirebaseError(`Errore Firestore: ${firestoreError.message}`);
+                }
+                setLoading(false);
+                return;
+              }
             }
           }
         } catch (error) {
@@ -118,11 +133,20 @@ function App() {
       // Salva i dati utente in Firestore
       const userDocRef = doc(db, 'users', userCredential.user.uid);
       console.log('Salvataggio dati utente in Firestore...');
-      await setDoc(userDocRef, {
-        name: userData.name,
-        email: userData.email
-      });
-      console.log('Dati utente salvati con successo');
+      try {
+        await setDoc(userDocRef, {
+          name: userData.name,
+          email: userData.email
+        });
+        console.log('Dati utente salvati con successo');
+      } catch (firestoreError: any) {
+        console.error('Errore durante la scrittura su Firestore:', firestoreError);
+        if (firestoreError.code === 'permission-denied') {
+          throw new Error('Errore di permessi Firestore. Verifica che le regole di sicurezza del database siano configurate correttamente.');
+        } else {
+          throw new Error(`Errore Firestore: ${firestoreError.message}`);
+        }
+      }
       console.log('Firebase Auth currentUser dopo login:', auth.currentUser);
       
       // L'utente verrà impostato dall'effetto onAuthStateChanged
@@ -195,6 +219,7 @@ function App() {
             <Login onLogin={handleLogin} />
           )}
         </main>
+        <AIAssistant />
       </div>
     </ErrorBoundary>
   );

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, Calendar, CookingPot, Apple } from 'lucide-react';
+import { Calculator, Calendar, CookingPot, Apple, Home } from 'lucide-react';
 import { Calculations } from './Calculations';
 import { Diet } from './Diet';
 import { Recipes } from './Recipes';
 import { Foods } from './Foods';
-import './styles/Dashboard.css';
 
 interface DashboardProps {
   user: { name: string; email: string };
@@ -14,7 +13,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<'calculations' | 'diet' | 'recipes' | 'foods'>('calculations');
   const [error, setError] = useState<string | null>(null);
 
-  // Resetta l'errore quando cambia la tab
   useEffect(() => {
     setError(null);
   }, [activeTab]);
@@ -22,7 +20,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const tabs = [
     {
       id: 'calculations' as const,
-      label: 'Calcoli di Base',
+      label: 'Calcoli',
       icon: Calculator,
       component: Calculations
     },
@@ -53,9 +51,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       return <ActiveComponent />;
     } catch (err) {
       console.error('Errore nel rendering del componente:', err);
-      setError(`Si è verificato un errore nel caricamento della pagina ${activeTab === 'diet' ? 'Dieta' : activeTab === 'recipes' ? 'Ricette' : activeTab === 'foods' ? 'Alimenti' : 'Calcoli di Base'}. Riprova più tardi.`);
+      setError(`Si è verificato un errore nel caricamento della pagina.`);
       return (
-        <div className="p-6 bg-red-50 border border-red-200 rounded-xl text-red-700">
+        <div className="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md3-medium text-red-700 dark:text-red-300">
           <p className="font-medium">Errore</p>
           <p>{error || 'Si è verificato un errore imprevisto.'}</p>
         </div>
@@ -64,41 +62,67 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto animate-fade-in px-4 sm:px-6 lg:px-8">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-sage-900 mb-2">
-          Benvenuto, {user.name.split(' ')[0]}!
+    <div className="max-w-7xl mx-auto animate-fade-in px-4 sm:px-6 lg:px-8 pb-24 lg:pb-8">
+      <div className="mb-6 sm:mb-10 pt-4">
+        <h1 className="text-3xl sm:text-4xl font-black text-sage-900 dark:text-sage-50 tracking-tight">
+          Ciao, {user.name.split(' ')[0]}!
         </h1>
-        <p className="text-sage-600 text-sm sm:text-base">Gestisci i tuoi calcoli nutrizionali e piano alimentare</p>
+        <p className="text-sage-600 dark:text-sage-400 text-lg">Il tuo benessere inizia da qui.</p>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-xl p-2 mb-6 sm:mb-8 border border-white/20 shadow-lg">
-        <div className="flex flex-wrap gap-1 sm:gap-2 dashboard-tabs">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center justify-center space-x-1 sm:space-x-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 flex-1 sm:flex-none min-w-0 dashboard-tab ${
-                  isActive
-                    ? 'bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-lg transform scale-105'
-                    : 'text-sage-600 hover:text-sage-900 hover:bg-sage-50 hover:shadow-md'
-                }`}
-              >
-                <Icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 dashboard-tab-icon" />
-                <span className="text-xs sm:text-sm truncate">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Desktop Tab Navigation (MD3 Tonal Buttons) */}
+      <div className="hidden lg:flex space-x-2 mb-10 p-1.5 bg-surface-container-light dark:bg-surface-container-dark rounded-full w-max shadow-md3-1">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center space-x-2 px-8 py-3 rounded-full font-bold transition-all duration-300 ${
+                isActive
+                  ? 'bg-primary-600 dark:bg-primary-500 text-white shadow-md3-2 scale-105'
+                  : 'text-sage-600 dark:text-sage-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 hover:text-primary-700 dark:hover:text-primary-300'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Mobile Bottom Navigation (MD3 style) */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-surface-dark/95 backdrop-blur-lg border-t border-sage-200 dark:border-sage-800 px-4 py-3 z-40 flex justify-around items-center shadow-2xl">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="flex flex-col items-center space-y-1 flex-1 relative"
+            >
+              <div className={`px-5 py-1.5 rounded-full transition-all duration-300 ${
+                isActive ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300' : 'text-sage-500'
+              }`}>
+                <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} />
+              </div>
+              <span className={`text-[10px] font-bold uppercase tracking-widest ${isActive ? 'text-primary-700 dark:text-primary-300' : 'text-sage-500'}`}>
+                {tab.label}
+              </span>
+              {isActive && (
+                <div className="absolute -top-3 w-1.5 h-1.5 bg-primary-500 rounded-full animate-pulse"></div>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab Content */}
-      <div className="animate-slide-up">
+      <div className="animate-slide-up pb-10">
         {renderActiveComponent()}
       </div>
     </div>

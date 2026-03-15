@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
 import { FoodAutocomplete } from './FoodAutocomplete';
+import { PortionOptimizer } from './PortionOptimizer';
+import { FoodMacroProfile } from '../../utils/portionOptimizer';
 
 interface MealItem {
   id: string;
@@ -11,6 +13,10 @@ interface MealItem {
   carbs: number;
   fats: number;
   category?: string;
+  baseCalories?: number; // per 100g
+  baseProteins?: number; // per 100g
+  baseCarbs?: number; // per 100g
+  baseFats?: number; // per 100g
 }
 
 interface MealSectionProps {
@@ -60,6 +66,40 @@ export const MealSection: React.FC<MealSectionProps> = ({
     }), { calories: 0, proteins: 0, carbs: 0, fats: 0 });
   };
 
+  const handleApplyOptimization = (optimizedGrams: { [foodId: string]: number }) => {
+    const updatedData = mealData.map(item => {
+      if (optimizedGrams[item.id] !== undefined) {
+        const grams = optimizedGrams[item.id];
+        const baseCalories = item.baseCalories || (item.calories / (item.grams || 1)) * 100;
+        const baseProteins = item.baseProteins || (item.proteins / (item.grams || 1)) * 100;
+        const baseCarbs = item.baseCarbs || (item.carbs / (item.grams || 1)) * 100;
+        const baseFats = item.baseFats || (item.fats / (item.grams || 1)) * 100;
+
+        return {
+          ...item,
+          grams,
+          calories: (baseCalories * grams) / 100,
+          proteins: (baseProteins * grams) / 100,
+          carbs: (baseCarbs * grams) / 100,
+          fats: (baseFats * grams) / 100
+        };
+      }
+      return item;
+    });
+    onUpdate(updatedData);
+  };
+
+  const selectedFoodsForOptimizer: FoodMacroProfile[] = mealData
+    .filter(item => item.food)
+    .map(item => ({
+      id: item.id,
+      name: item.food,
+      caloriesPer100g: item.baseCalories || (item.calories / (item.grams || 1)) * 100,
+      carbsPer100g: item.baseCarbs || (item.carbs / (item.grams || 1)) * 100,
+      proteinsPer100g: item.baseProteins || (item.proteins / (item.grams || 1)) * 100,
+      fatsPer100g: item.baseFats || (item.fats / (item.grams || 1)) * 100
+    }));
+
   const totals = calculateTotals();
 
   return (
@@ -96,9 +136,16 @@ export const MealSection: React.FC<MealSectionProps> = ({
                   <FoodAutocomplete
                     value={item.food}
                     onChange={(food, nutritionalData) => {
+                      // Se abbiamo i dati nutrizionali, salviamo anche i valori base per 100g
+                      const grams = item.grams || 100;
                       updateItem(item.id, {
                         food,
-                        ...nutritionalData
+                        ...nutritionalData,
+                        grams,
+                        baseCalories: (nutritionalData.calories / grams) * 100,
+                        baseProteins: (nutritionalData.proteins / grams) * 100,
+                        baseCarbs: (nutritionalData.carbs / grams) * 100,
+                        baseFats: (nutritionalData.fats / grams) * 100,
                       });
                     }}
                     grams={item.grams}
@@ -271,6 +318,12 @@ export const MealSection: React.FC<MealSectionProps> = ({
               </div>
             </div>
           </div>
+
+          <PortionOptimizer 
+            selectedFoods={selectedFoodsForOptimizer} 
+            onApply={handleApplyOptimization}
+            currentCalories={totals.calories}
+          />
           
           {/* Macro Tab */}
           {totals.calories > 0 && (
