@@ -61,7 +61,7 @@
   }
 
   .md3-input {
-    @apply bg-sage-50 dark:bg-surface-container-high-dark border-none rounded-md3-small px-4 py-3 focus:ring-2 focus:ring-primary-500 transition-all text-sage-900 dark:text-sage-50 placeholder-sage-400 dark:placeholder-sage-500;
+    @apply bg-sage-50 dark:bg-surface-container-dark border-none rounded-md3-small px-4 py-3 focus:ring-2 focus:ring-primary-500 transition-all text-sage-900 dark:text-sage-50 placeholder-sage-400 dark:placeholder-sage-500;
   }
 
   .md3-table-container {
