@@ -40,7 +40,7 @@ export const sendMessageToGemini = async (
   ];
 
   const systemInstruction = `
-    Sei un assistente AI esperto in nutrizione e pianificazione dei pasti.
+    Sei un assistente esperto in nutrizione e pianificazione dei pasti per l'app MacroMind.
     Il tuo obiettivo è aiutare l'utente a creare piani alimentari bilanciati, suggerire ricette e rispondere a domande nutrizionali.
     
     Contesto fornito:

@@ -282,84 +282,7 @@ export const Calculations: React.FC = () => {
         </div>
       </div>
 
-      {/* Pannello Parametri di Calcolo Pasti */}
-      <div className="md3-card p-6 sm:p-10 border border-accent-200 dark:border-accent-800/30">
-        <div className="flex items-center space-x-4 mb-8">
-          <div className="w-12 h-12 bg-accent-500 rounded-md3-medium flex items-center justify-center shadow-md3-2">
-            <Settings className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Parametri Calcolo Pasti</h2>
-            <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Target Macronutrienti e Calorie</p>
-          </div>
-        </div>
-
-        {/* Range Percentuali */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          {(['carbs', 'proteins', 'fats'] as const).map((macro) => (
-            <div key={macro} className="bg-surface-container-light dark:bg-surface-container-dark p-6 rounded-md3-medium border border-sage-200 dark:border-sage-800">
-              <div className="flex items-center space-x-2 mb-4">
-                <Percent className="w-4 h-4 text-accent-500" />
-                <span className="text-sm font-black uppercase tracking-widest text-sage-700 dark:text-sage-300">
-                  {macro === 'carbs' ? 'Carboidrati' : macro === 'proteins' ? 'Proteine' : 'Lipidi'}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <input
-                  type="number"
-                  value={mealRanges[macro].min}
-                  onChange={(e) => handleMealRangeChange(macro, 'min', e.target.value)}
-                  className="md3-input w-full py-2 text-center font-bold"
-                  placeholder="Min %"
-                />
-                <span className="text-sage-400 font-bold">-</span>
-                <input
-                  type="number"
-                  value={mealRanges[macro].max}
-                  onChange={(e) => handleMealRangeChange(macro, 'max', e.target.value)}
-                  className="md3-input w-full py-2 text-center font-bold"
-                  placeholder="Max %"
-                />
-                <span className="text-sage-600 dark:text-sage-400 font-bold">%</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Kcal per Pasto della Settimana */}
-        <div className="md3-table-container">
-          <div className="overflow-x-auto">
-            <table className="md3-table">
-              <thead className="md3-table-header">
-                <tr>
-                  <th className="md3-table-th">Giorno</th>
-                  {mealTypes.map(m => <th key={m} className="md3-table-th text-center">{m}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {daysOfWeek.map((day, idx) => (
-                  <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
-                    <td className="md3-table-td font-bold text-sage-900 dark:text-sage-100">{day}</td>
-                    {mealTypes.map(meal => (
-                      <td key={meal} className="md3-table-td p-2">
-                        <input
-                          type="number"
-                          value={dailyMealKcal[day][meal] || ''}
-                          onChange={(e) => handleMealKcalChange(day, meal, e.target.value)}
-                          className="md3-input w-full py-1 text-center text-xs font-bold"
-                          placeholder="kcal"
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      
-      {/* Results Section (BMI, MB, TDEE, etc) */}
+      {/* Results Section (BMI, MB, TDEE, etc) - SPOSTATO SOPRA */}
       {isCalculated && results && (
         <div className="md3-card p-6 sm:p-10 border border-primary-100 dark:border-primary-900/30">
           <div className="flex items-center space-x-4 mb-8">
@@ -443,6 +366,83 @@ export const Calculations: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Pannello Parametri di Calcolo Pasti - SPOSTATO SOTTO */}
+      <div className="md3-card p-6 sm:p-10 border border-accent-200 dark:border-accent-800/30">
+        <div className="flex items-center space-x-4 mb-8">
+          <div className="w-12 h-12 bg-accent-500 rounded-md3-medium flex items-center justify-center shadow-md3-2">
+            <Settings className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Parametri Calcolo Pasti</h2>
+            <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Target Macronutrienti e Calorie</p>
+          </div>
+        </div>
+
+        {/* Range Percentuali */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          {(['carbs', 'proteins', 'fats'] as const).map((macro) => (
+            <div key={macro} className="bg-surface-container-light dark:bg-surface-container-dark p-6 rounded-md3-medium border border-sage-200 dark:border-sage-800">
+              <div className="flex items-center space-x-2 mb-4">
+                <Percent className="w-4 h-4 text-accent-500" />
+                <span className="text-sm font-black uppercase tracking-widest text-sage-700 dark:text-sage-300">
+                  {macro === 'carbs' ? 'Carboidrati' : macro === 'proteins' ? 'Proteine' : 'Lipidi'}
+                </span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="number"
+                  value={mealRanges[macro].min}
+                  onChange={(e) => handleMealRangeChange(macro, 'min', e.target.value)}
+                  className="md3-input w-full py-2 text-center font-bold"
+                  placeholder="Min %"
+                />
+                <span className="text-sage-400 font-bold">-</span>
+                <input
+                  type="number"
+                  value={mealRanges[macro].max}
+                  onChange={(e) => handleMealRangeChange(macro, 'max', e.target.value)}
+                  className="md3-input w-full py-2 text-center font-bold"
+                  placeholder="Max %"
+                />
+                <span className="text-sage-600 dark:text-sage-400 font-bold">%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Kcal per Pasto della Settimana */}
+        <div className="md3-table-container">
+          <div className="overflow-x-auto">
+            <table className="md3-table">
+              <thead className="md3-table-header">
+                <tr>
+                  <th className="md3-table-th">Giorno</th>
+                  {mealTypes.map(m => <th key={m} className="md3-table-th text-center">{m}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {daysOfWeek.map((day, idx) => (
+                  <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
+                    <td className="md3-table-td font-bold text-sage-900 dark:text-sage-100">{day}</td>
+                    {mealTypes.map(meal => (
+                      <td key={meal} className="md3-table-td p-2">
+                        <input
+                          type="number"
+                          value={dailyMealKcal[day][meal] || ''}
+                          onChange={(e) => handleMealKcalChange(day, meal, e.target.value)}
+                          className="md3-input w-full py-1 text-center text-xs font-bold"
+                          placeholder="kcal"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 # Guida all'Implementazione e Popolamento del Database Firestore
 
-Questa guida fornisce tutte le informazioni necessarie per configurare, gestire e popolare il database di **MacroMind AI**.
+Questa guida fornisce tutte le informazioni necessarie per configurare, gestire e popolare il database di **MacroMind**.
 
 ## 1. Analisi dello Stato del Database
 

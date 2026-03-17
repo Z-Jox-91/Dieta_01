@@ -155,11 +155,11 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onCha
       </div>
 
       {showSuggestions && suggestions.length > 0 && (
-        <div className="md3-dropdown max-h-[300px] overflow-y-auto scrollbar-thin">
-          {suggestions.map((food) => (
+        <div className="md3-dropdown max-h-[300px] overflow-y-auto scrollbar-thin shadow-2xl">
+          {suggestions.map((food, index) => (
             <div
-              key={`${food.name}-${food.calories}`}
-              className="md3-dropdown-item flex-col items-start space-x-0"
+              key={`${food.name}-${food.calories}-${index}`}
+              className="md3-dropdown-item flex-col items-start space-x-0 border-b border-sage-50 dark:border-sage-800/50 last:border-none"
               onClick={() => handleSelectFood(food)}
             >
               <div className="font-bold text-sage-900 dark:text-sage-100">{food.name}</div>

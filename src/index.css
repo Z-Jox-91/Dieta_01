@@ -37,8 +37,31 @@
     @apply bg-primary-600 dark:bg-primary-500 text-white rounded-full px-6 py-3 font-medium hover:shadow-md3-2 active:scale-95 transition-all;
   }
 
+  /* MD3 Base Colors & Surfaces */
+  :root {
+    --md-sys-color-surface: #fdfdfd;
+    --md-sys-color-on-surface: #1a1c1e;
+    --md-sys-color-primary: #006c47;
+    --md-sys-color-secondary: #4d6357;
+  }
+
+  .dark {
+    --md-sys-color-surface: #1a1c1e;
+    --md-sys-color-on-surface: #e2e2e6;
+    --md-sys-color-primary: #00e698;
+    --md-sys-color-secondary: #b1ccbe;
+  }
+
+  body {
+    @apply bg-surface-light dark:bg-surface-dark text-sage-900 dark:text-sage-100 transition-colors duration-300;
+  }
+
+  .md3-card {
+    @apply bg-white dark:bg-surface-container-dark rounded-md3-large shadow-md3-1 hover:shadow-md3-2 transition-all duration-300;
+  }
+
   .md3-input {
-    @apply bg-sage-50 dark:bg-surface-container-dark border-none rounded-md3-small px-4 py-3 focus:ring-2 focus:ring-primary-500 transition-all text-sage-900 dark:text-sage-100 placeholder-sage-400 dark:placeholder-sage-500;
+    @apply bg-sage-50 dark:bg-surface-container-high-dark border-none rounded-md3-small px-4 py-3 focus:ring-2 focus:ring-primary-500 transition-all text-sage-900 dark:text-sage-50 placeholder-sage-400 dark:placeholder-sage-500;
   }
 
   .md3-table-container {
@@ -70,37 +93,115 @@
   }
 
   .md3-dropdown {
-    @apply absolute z-50 mt-2 w-full bg-white dark:bg-surface-container-dark rounded-md3-small shadow-md3-3 border border-sage-200 dark:border-sage-800 overflow-hidden;
+    @apply absolute z-[9999] mt-2 w-full bg-white dark:bg-surface-container-dark rounded-md3-small shadow-md3-3 border border-sage-200 dark:border-sage-800 overflow-hidden;
+    /* Assicura che il dropdown non venga tagliato da contenitori con overflow hidden */
+    position: absolute !important;
+    left: 0;
+    right: 0;
   }
 
   .md3-dropdown-item {
     @apply px-4 py-3 hover:bg-primary-50 dark:hover:bg-primary-900/30 cursor-pointer transition-colors flex items-center space-x-3 text-sage-700 dark:text-sage-200;
   }
 
-  .md3-modal-overlay {
-    @apply fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in;
-  }
-
   .md3-modal-content {
     @apply bg-white dark:bg-surface-dark rounded-md3-large shadow-md3-3 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-slide-up;
   }
+
+  /* Scrollbar MD3 Style */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.sage.300') transparent;
+  }
+
+  .dark * {
+    scrollbar-color: theme('colors.sage.700') transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-sage-300/50 dark:bg-sage-700/50 rounded-full border-2 border-transparent bg-clip-content;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-sage-400 dark:bg-sage-600;
+  }
+
+  /* Backdrop Blur for Modals */
+  .md3-modal-overlay {
+    @apply fixed inset-0 z-[60] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in;
+  }
+
+  /* Charts Container Dark Mode */
+  .recharts-cartesian-grid-horizontal line,
+  .recharts-cartesian-grid-vertical line {
+    @apply stroke-sage-200 dark:stroke-sage-800;
+  }
+
+  .recharts-text {
+    @apply fill-sage-600 dark:fill-sage-400 text-[10px] font-bold;
+  }
+
+  .recharts-legend-item-text {
+    @apply text-sage-700 dark:text-sage-300 !important;
+  }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
+/* Typography System - 1.250 Major Third Scale */
+@layer base {
+  :root {
+    --step--2: clamp(0.64rem, 0.63rem + 0.04vw, 0.67rem);
+    --step--1: clamp(0.8rem, 0.79rem + 0.05vw, 0.83rem);
+    --step-0: clamp(1rem, 0.98rem + 0.07vw, 1.04rem);
+    --step-1: clamp(1.25rem, 1.23rem + 0.09vw, 1.3rem);
+    --step-2: clamp(1.56rem, 1.53rem + 0.11vw, 1.63rem);
+    --step-3: clamp(1.95rem, 1.92rem + 0.14vw, 2.03rem);
+    --step-4: clamp(2.44rem, 2.39rem + 0.18vw, 2.54rem);
+    --step-5: clamp(3.05rem, 2.99rem + 0.22vw, 3.18rem);
+  }
 
-::-webkit-scrollbar-track {
-  @apply bg-sage-50 dark:bg-surface-dark;
-}
+  h1 { 
+    @apply font-black tracking-tight text-sage-900 dark:text-sage-50 mb-6;
+    font-size: var(--step-4);
+    line-height: 1.1;
+  }
+  h2 { 
+    @apply font-black tracking-tight text-sage-900 dark:text-sage-50 mb-4;
+    font-size: var(--step-3);
+    line-height: 1.2;
+  }
+  h3 { 
+    @apply font-bold tracking-tight text-sage-800 dark:text-sage-100 mb-3;
+    font-size: var(--step-2);
+    line-height: 1.3;
+  }
+  h4 { 
+    @apply font-bold tracking-tight text-sage-800 dark:text-sage-100 mb-2;
+    font-size: var(--step-1);
+  }
+  body { 
+    font-size: var(--step-0);
+    line-height: 1.6;
+    @apply font-medium;
+  }
+  
+  label {
+    @apply text-sm font-black uppercase tracking-widest text-sage-500 dark:text-sage-400 mb-1 block;
+    font-size: var(--step--1);
+  }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-sage-300 dark:bg-sage-700 rounded-full border-4 border-transparent bg-clip-content;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-sage-400 dark:bg-sage-600;
+  .caption {
+    font-size: var(--step--1);
+    @apply text-sage-500 dark:text-sage-400 font-medium;
+  }
 }
 
 /* Smooth focus transitions */

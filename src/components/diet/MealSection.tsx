@@ -105,7 +105,7 @@ export const MealSection: React.FC<MealSectionProps> = ({
   const totals = calculateTotals();
 
   return (
-    <div className="md3-card border border-sage-200 dark:border-sage-800 overflow-hidden shadow-none">
+    <div className="md3-card border border-sage-200 dark:border-sage-800 shadow-none">
       <div 
         className="p-6 cursor-pointer hover:bg-sage-50/50 dark:hover:bg-surface-container-dark/50 transition-colors duration-200 border-b border-sage-100 dark:border-sage-800"
         onClick={() => setIsExpanded(!isExpanded)}
