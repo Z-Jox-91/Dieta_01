@@ -93,9 +93,14 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onCha
       return;
     }
 
-    const filtered = foodDatabase.filter(food => 
-      food.name.toLowerCase().includes(term.toLowerCase())
-    ).slice(0, 10); // Limita a 10 suggerimenti
+    const normalizedTerm = term.toLowerCase().trim();
+    const filtered = foodDatabase.filter(food => {
+      const normalizedFood = food.name.toLowerCase();
+      // Ricerca più intelligente: 
+      // 1. Deve contenere il termine come sottostringa continua
+      // 2. Oppure deve iniziare con il termine
+      return normalizedFood.includes(normalizedTerm);
+    });
 
     setSuggestions(filtered);
   };
@@ -143,23 +148,23 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onCha
               filterSuggestions(searchTerm);
             }
           }}
-          className="w-full px-3 py-2 pl-10 bg-white border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+          className="md3-input pl-10 w-full text-sm py-2"
           placeholder="Cerca alimento..."
         />
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-sage-400" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-sage-400 dark:text-sage-500" />
       </div>
 
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-sage-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+        <div className="md3-dropdown max-h-[300px] overflow-y-auto scrollbar-thin">
           {suggestions.map((food) => (
             <div
-              key={food.name}
-              className="px-4 py-2 cursor-pointer hover:bg-sage-50 text-sm"
+              key={`${food.name}-${food.calories}`}
+              className="md3-dropdown-item flex-col items-start space-x-0"
               onClick={() => handleSelectFood(food)}
             >
-              <div className="font-medium">{food.name}</div>
-              <div className="text-xs text-sage-600">
-                {food.calories} kcal | {food.proteins}g proteine | {food.carbs}g carb | {food.fats}g grassi
+              <div className="font-bold text-sage-900 dark:text-sage-100">{food.name}</div>
+              <div className="text-[10px] uppercase tracking-widest font-black text-sage-500 dark:text-sage-400 mt-1">
+                {food.calories} kcal • P: {food.proteins}g • C: {food.carbs}g • F: {food.fats}g
               </div>
             </div>
           ))}

@@ -1,4 +1,4 @@
-import { matrix, lsolve, multiply, transpose, inv } from 'mathjs';
+import { matrix, multiply, transpose, inv, add, identity } from 'mathjs';
 
 export interface FoodMacroProfile {
   id: string;
@@ -7,15 +7,13 @@ export interface FoodMacroProfile {
   carbsPer100g: number;
   proteinsPer100g: number;
   fatsPer100g: number;
-  minGrams?: number;
-  maxGrams?: number;
 }
 
 export interface MacroTarget {
   totalCalories: number;
-  carbsPercent: number; // e.g. 50
-  proteinsPercent: number; // e.g. 30
-  fatsPercent: number; // e.g. 20
+  carbsPercent: number;
+  proteinsPercent: number;
+  fatsPercent: number;
 }
 
 export interface OptimizedPortion {
@@ -24,75 +22,90 @@ export interface OptimizedPortion {
 }
 
 /**
- * Optimizes food portions using Least Squares to match target macro profiles.
+ * Ottimizza le porzioni degli alimenti per soddisfare i target calorici e di macronutrienti.
+ * Implementa un sistema di equazioni lineari A * x = b risolto con i Minimi Quadrati Regolarizzati (Ridge Regression).
  * 
- * Equations for each macro:
- * sum( (x_i/100) * carbs_i * 4 ) = TargetCarbsCalories
- * sum( (x_i/100) * proteins_i * 4 ) = TargetProteinsCalories
- * sum( (x_i/100) * fats_i * 9 ) = TargetFatsCalories
+ * Target:
+ * 1. Somma calorie = Target Calorie
+ * 2. Somma Carbo (kcal) = Target Carbo (kcal)
+ * 3. Somma Prote (kcal) = Target Prote (kcal)
+ * 4. Somma Grassi (kcal) = Target Grassi (kcal)
  * 
- * This can be written as A * x = b
- * where A is the macro matrix and b is the target vector.
- * We use Least Squares (A^T * A) * x = A^T * b to solve for x.
+ * @param foods Lista degli alimenti selezionati con il loro profilo nutrizionale per 100g.
+ * @param target Target calorici e percentuali di macronutrienti.
+ * @returns Lista delle porzioni ottimizzate in grammi.
  */
 export function optimizePortions(
   foods: FoodMacroProfile[],
   target: MacroTarget
 ): OptimizedPortion[] {
+  const startTime = performance.now();
+  
   if (foods.length === 0) return [];
 
-  // 1. Build matrix A (3xN)
-  // Rows: Carbs Calories, Proteins Calories, Fats Calories
-  // Columns: Food 1, Food 2, ..., Food N (per 100g)
+  // 1. Definiamo i target in kcal assolute
+  const targetCarbsKcal = (target.totalCalories * target.carbsPercent) / 100;
+  const targetProteinsKcal = (target.totalCalories * target.proteinsPercent) / 100;
+  const targetFatsKcal = (target.totalCalories * target.fatsPercent) / 100;
+
+  // 2. Costruiamo la matrice A (4 equazioni x N alimenti)
+  // Eq 1: Calorie totali
+  // Eq 2: Carboidrati (kcal)
+  // Eq 3: Proteine (kcal)
+  // Eq 4: Grassi (kcal)
+  // I coefficienti sono per 1g di alimento (valore per 100g / 100)
   const A_data: number[][] = [
+    foods.map(f => f.caloriesPer100g / 100),
     foods.map(f => (f.carbsPer100g * 4) / 100),
     foods.map(f => (f.proteinsPer100g * 4) / 100),
     foods.map(f => (f.fatsPer100g * 9) / 100),
   ];
 
-  // 2. Build vector b (3x1)
-  const b_data: number[] = [
-    (target.totalCalories * target.carbsPercent) / 100,
-    (target.totalCalories * target.proteinsPercent) / 100,
-    (target.totalCalories * target.fatsPercent) / 100,
+  // 3. Costruiamo il vettore b (4 target)
+  const b_data: number[][] = [
+    [target.totalCalories],
+    [targetCarbsKcal],
+    [targetProteinsKcal],
+    [targetFatsKcal],
   ];
 
-  const A = matrix(A_data);
-  const b = matrix(b_data);
-
-  // 3. Solve using Least Squares: (A^T * A) * x = A^T * b
-  // Note: For small N, we can also use pseudo-inverse: x = (A^T * A)^-1 * A^T * b
-  const AT = transpose(A);
-  const ATA = multiply(AT, A);
-  const ATb = multiply(AT, b);
-
-  let x: any;
   try {
-    // If ATA is singular (e.g., foods are too similar), we need regularization
-    // Adding a small identity matrix to diagonal (Ridge Regression)
-    const ridge = 0.0001;
+    const A = matrix(A_data);
+    const b = matrix(b_data);
+
+    // Risolviamo con Minimi Quadrati: x = (A^T * A + lambda * I)^-1 * A^T * b
+    const AT = transpose(A);
+    const ATA = multiply(AT, A);
+    const ATb = multiply(AT, b);
+
+    // Regolarizzazione per gestire matrici singolari (alimenti troppo simili o N < 4)
+    const lambda = 0.001;
     const size = ATA.size()[0];
-    const identity = matrix(Array(size).fill(0).map((_, i) => Array(size).fill(0).map((_, j) => i === j ? ridge : 0)));
-    const regularizedATA = multiply(ATA, 1).add(identity); // Workaround for matrix addition
+    const I = identity(size);
+    const regularizedATA = add(ATA, multiply(I, lambda));
     
-    // x = inv(ATA) * ATb
-    x = multiply(inv(regularizedATA), ATb);
-  } catch (e) {
-    console.warn("Portion optimization failed, using heuristic fallback", e);
-    // Fallback to simple equal distribution
-    return foods.map(f => ({ foodId: f.id, grams: 100 }));
+    const x = multiply(inv(regularizedATA as any), ATb);
+    const resultGrams = x.toArray().map((val: any) => Math.max(0, Array.isArray(val) ? val[0] : val));
+
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    
+    if (duration > 500) {
+      console.warn(`Ottimizzazione lenta: ${duration.toFixed(2)}ms`);
+    }
+
+    return foods.map((food, i) => ({
+      foodId: food.id,
+      grams: Math.round(resultGrams[i]) // Arrotondiamo al grammo intero
+    }));
+
+  } catch (error) {
+    console.error("Errore nell'ottimizzazione porzioni:", error);
+    // Fallback: Distribuzione equa delle calorie
+    const kcalPerFood = target.totalCalories / foods.length;
+    return foods.map(f => ({
+      foodId: f.id,
+      grams: Math.round((kcalPerFood / f.caloriesPer100g) * 100)
+    }));
   }
-
-  const resultGrams = x.toArray().map((val: any) => {
-    const grams = Array.isArray(val) ? val[0] : val;
-    return Math.max(0, grams); // Ensure non-negative
-  });
-
-  // 4. Apply min/max constraints and normalize
-  return foods.map((food, i) => {
-    let grams = resultGrams[i];
-    if (food.minGrams !== undefined) grams = Math.max(grams, food.minGrams);
-    if (food.maxGrams !== undefined) grams = Math.min(grams, food.maxGrams);
-    return { foodId: food.id, grams: Math.round(grams * 10) / 10 };
-  });
 }

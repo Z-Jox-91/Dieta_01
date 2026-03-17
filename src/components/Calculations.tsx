@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RotateCcw, Target } from 'lucide-react';
+import { Calculator, RotateCcw, Target, Settings, Percent } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -30,7 +30,24 @@ interface DailyCalorieLimit {
   [day: string]: number;
 }
 
+interface MealNutrientRanges {
+  carbs: { min: number; max: number };
+  proteins: { min: number; max: number };
+  fats: { min: number; max: number };
+}
+
+interface DailyMealKcal {
+  [day: string]: {
+    Colazione: number;
+    Pranzo: number;
+    Cena: number;
+    Spuntino1: number;
+    Spuntino2: number;
+  };
+}
+
 const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+const mealTypes = ['Colazione', 'Pranzo', 'Cena', 'Spuntino1', 'Spuntino2'];
 
 export const Calculations: React.FC = () => {
   const [data, setData] = useState<CalculationData>({
@@ -45,37 +62,30 @@ export const Calculations: React.FC = () => {
 
   const [results, setResults] = useState<Results | null>(null);
   const [isCalculated, setIsCalculated] = useState(false);
-
   const [dailyCalorieLimits, setDailyCalorieLimits] = useState<DailyCalorieLimit>({});
+  
+  // Nuovi stati per parametri pasti
+  const [mealRanges, setMealRanges] = useState<MealNutrientRanges>({
+    carbs: { min: 45, max: 55 },
+    proteins: { min: 25, max: 35 },
+    fats: { min: 15, max: 25 }
+  });
+  
+  const [dailyMealKcal, setDailyMealKcal] = useState<DailyMealKcal>(
+    daysOfWeek.reduce((acc, day) => ({
+      ...acc,
+      [day]: mealTypes.reduce((mAcc, m) => ({ ...mAcc, [m]: 0 }), {})
+    }), {})
+  );
 
   useEffect(() => {
     const loadCalculationsData = async () => {
       if (!auth.currentUser) return;
       
       try {
-        // Prima controlla se ci sono dati in localStorage da migrare
-        const saved = localStorage.getItem('piano_alimentare_calculations');
-        if (saved) {
-          try {
-            const savedData = JSON.parse(saved);
-            // Migra i dati da localStorage a Firestore
-            await migrateCalculationsToFirestore(savedData);
-            // Rimuovi i dati da localStorage dopo la migrazione
-            localStorage.removeItem('piano_alimentare_calculations');
-            
-            // Imposta i dati migrati nello state
-            setData(savedData.data);
-            setResults(savedData.results);
-            setIsCalculated(true);
-          } catch (error) {
-            console.error('Errore nella migrazione dei calcoli:', error);
-          }
-        }
-        
-        // Carica i dati da Firestore
+        // Carica i calcoli
         const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
         const calculationsSnapshot = await getDoc(calculationsDoc);
-        
         if (calculationsSnapshot.exists()) {
           const calculationsData = calculationsSnapshot.data();
           setData(calculationsData.data);
@@ -84,29 +94,19 @@ export const Calculations: React.FC = () => {
         }
         
         // Carica i limiti di calorie giornalieri
-        const savedLimits = localStorage.getItem('piano_alimentare_daily_limits');
-        if (savedLimits) {
-          try {
-            const parsedLimits = JSON.parse(savedLimits);
-            // Migra i limiti da localStorage a Firestore
-            await migrateLimitsToFirestore(parsedLimits);
-            // Rimuovi i dati da localStorage dopo la migrazione
-            localStorage.removeItem('piano_alimentare_daily_limits');
-            
-            // Imposta i limiti migrati nello state
-            setDailyCalorieLimits(parsedLimits);
-          } catch (error) {
-            console.error('Errore nella migrazione dei limiti giornalieri:', error);
-          }
-        }
-        
-        // Carica i limiti da Firestore
         const limitsDoc = doc(db, `users/${auth.currentUser.uid}/data/daily_limits`);
         const limitsSnapshot = await getDoc(limitsDoc);
-        
         if (limitsSnapshot.exists()) {
-          const limitsData = limitsSnapshot.data() as DailyCalorieLimit;
-          setDailyCalorieLimits(limitsData);
+          setDailyCalorieLimits(limitsSnapshot.data() as DailyCalorieLimit);
+        }
+
+        // Carica i parametri pasti
+        const mealParamsDoc = doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`);
+        const mealParamsSnapshot = await getDoc(mealParamsDoc);
+        if (mealParamsSnapshot.exists()) {
+          const mealParams = mealParamsSnapshot.data();
+          if (mealParams.ranges) setMealRanges(mealParams.ranges);
+          if (mealParams.dailyMealKcal) setDailyMealKcal(mealParams.dailyMealKcal);
         }
       } catch (error) {
         console.error('Errore nel caricamento dei dati da Firestore:', error);
@@ -128,7 +128,6 @@ export const Calculations: React.FC = () => {
     const dailyMetabolism = basalMetabolism * data.laf;
     const weeklyMetabolism = dailyMetabolism * 7;
     
-    // Usa il valore del deficit giornaliero dal state invece di un valore fisso
     const dailyDeficit = data.dailyDeficit || 0;
     const weeklyDeficit = dailyDeficit * 7;
     const weeklyCalories = weeklyMetabolism - weeklyDeficit;
@@ -137,88 +136,63 @@ export const Calculations: React.FC = () => {
     const weeklyProteinRda = dailyProteinRda * 7;
 
     return {
-      bmi,
-      idealWeight,
-      basalMetabolism,
-      dailyMetabolism,
-      weeklyMetabolism,
-      dailyDeficit,
-      weeklyDeficit,
-      weeklyCalories,
-      dailyProteinRda,
-      weeklyProteinRda
+      bmi, idealWeight, basalMetabolism, dailyMetabolism, weeklyMetabolism,
+      dailyDeficit, weeklyDeficit, weeklyCalories, dailyProteinRda, weeklyProteinRda
     };
   };
 
-  // Funzione per migrare i calcoli da localStorage a Firestore
-  const migrateCalculationsToFirestore = async (calculationsData: any) => {
-    if (!auth.currentUser) return;
-    
-    try {
-      const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
-      await setDoc(calculationsDoc, calculationsData);
-      console.log('Migrazione dei calcoli completata con successo');
-    } catch (error) {
-      console.error('Errore durante la migrazione dei calcoli:', error);
-    }
-  };
-  
-  // Funzione per migrare i limiti giornalieri da localStorage a Firestore
-  const migrateLimitsToFirestore = async (limitsData: DailyCalorieLimit) => {
-    if (!auth.currentUser) return;
-    
-    try {
-      const limitsDoc = doc(db, `users/${auth.currentUser.uid}/data/daily_limits`);
-      await setDoc(limitsDoc, limitsData);
-      console.log('Migrazione dei limiti giornalieri completata con successo');
-    } catch (error) {
-      console.error('Errore durante la migrazione dei limiti giornalieri:', error);
-    }
-  };
-  
   const handleCalculate = async () => {
     const newResults = calculateResults();
     setResults(newResults);
     setIsCalculated(true);
     
-    // Salva i dati e i risultati in Firestore
     if (auth.currentUser) {
       try {
-        const calculationsData = {
-          data,
-          results: newResults
-        };
-        
-        const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
-        await setDoc(calculationsDoc, calculationsData);
+        await setDoc(doc(db, `users/${auth.currentUser.uid}/data/calculations`), {
+          data, results: newResults
+        });
       } catch (error) {
-        console.error('Errore nel salvataggio dei calcoli su Firestore:', error);
+        console.error('Errore nel salvataggio dei calcoli:', error);
       }
-    } else {
-      console.error('Utente non autenticato, impossibile salvare i calcoli');
     }
   };
 
-  const handleReset = async () => {
-    setData({
-      age: 0,
-      height: 0,
-      weight: 0,
-      gender: 'female',
-      laf: 1.4,
-      y: 0.8,
-      dailyDeficit: 275
-    });
-    setResults(null);
-    setIsCalculated(false);
+  const handleMealRangeChange = async (macro: keyof MealNutrientRanges, type: 'min' | 'max', value: string) => {
+    const newValue = parseInt(value) || 0;
+    const newRanges = {
+      ...mealRanges,
+      [macro]: { ...mealRanges[macro], [type]: newValue }
+    };
+    setMealRanges(newRanges);
     
-    // Rimuovi i dati da Firestore
     if (auth.currentUser) {
       try {
-        const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
-        await setDoc(calculationsDoc, {});
+        await setDoc(doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`), {
+          ranges: newRanges,
+          dailyMealKcal
+        }, { merge: true });
       } catch (error) {
-        console.error('Errore nella rimozione dei calcoli da Firestore:', error);
+        console.error('Errore nel salvataggio dei range:', error);
+      }
+    }
+  };
+
+  const handleMealKcalChange = async (day: string, meal: string, value: string) => {
+    const newValue = parseInt(value) || 0;
+    const newDailyMealKcal = {
+      ...dailyMealKcal,
+      [day]: { ...dailyMealKcal[day], [meal]: newValue }
+    };
+    setDailyMealKcal(newDailyMealKcal);
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`), {
+          ranges: mealRanges,
+          dailyMealKcal: newDailyMealKcal
+        }, { merge: true });
+      } catch (error) {
+        console.error('Errore nel salvataggio kcal pasti:', error);
       }
     }
   };
@@ -228,24 +202,18 @@ export const Calculations: React.FC = () => {
     newLimits[day] = parseInt(value) || 0;
     setDailyCalorieLimits(newLimits);
     
-    // Salva i limiti giornalieri in Firestore
     if (auth.currentUser) {
       try {
-        const limitsDoc = doc(db, `users/${auth.currentUser.uid}/data/daily_limits`);
-        await setDoc(limitsDoc, newLimits);
+        await setDoc(doc(db, `users/${auth.currentUser.uid}/data/daily_limits`), newLimits);
       } catch (error) {
-        console.error('Errore nel salvataggio dei limiti giornalieri su Firestore:', error);
+        console.error('Errore nel salvataggio limiti giornalieri:', error);
       }
-    } else {
-      console.error('Utente non autenticato, impossibile salvare i limiti giornalieri');
     }
   };
 
   const getTotalWeeklyLimit = (): number => {
     return Object.values(dailyCalorieLimits).reduce((sum, val) => sum + (val || 0), 0);
   };
-
-
 
   const isFormValid = data.age > 0 && data.height > 0 && data.weight > 0;
 
@@ -260,7 +228,7 @@ export const Calculations: React.FC = () => {
 
   return (
     <div className="space-y-6 sm:space-y-10">
-      {/* Input Form */}
+      {/* Input Form Dati Personali */}
       <div className="md3-card p-6 sm:p-10 border border-sage-200 dark:border-sage-800">
         <div className="flex items-center space-x-4 mb-8">
           <div className="w-12 h-12 bg-primary-600 dark:bg-primary-500 rounded-md3-medium flex items-center justify-center shadow-md3-2">
@@ -274,138 +242,133 @@ export const Calculations: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-2">
-            <label htmlFor="age" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Età</label>
-            <input
-              type="number"
-              id="age"
-              value={data.age || ''}
-              onChange={(e) => setData({...data, age: parseInt(e.target.value) || 0})}
-              className="md3-input w-full"
-              placeholder="Anni"
-            />
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Età</label>
+            <input type="number" value={data.age || ''} onChange={(e) => setData({...data, age: parseInt(e.target.value) || 0})} className="md3-input w-full" placeholder="Anni" />
           </div>
-          
           <div className="space-y-2">
-            <label htmlFor="height" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Altezza (cm)</label>
-            <input
-              type="number"
-              id="height"
-              value={data.height || ''}
-              onChange={(e) => setData({...data, height: parseInt(e.target.value) || 0})}
-              className="md3-input w-full"
-              placeholder="175"
-            />
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Altezza (cm)</label>
+            <input type="number" value={data.height || ''} onChange={(e) => setData({...data, height: parseInt(e.target.value) || 0})} className="md3-input w-full" placeholder="175" />
           </div>
-          
           <div className="space-y-2">
-            <label htmlFor="weight" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Peso (kg)</label>
-            <input
-              type="number"
-              id="weight"
-              value={data.weight || ''}
-              onChange={(e) => setData({...data, weight: parseInt(e.target.value) || 0})}
-              className="md3-input w-full"
-              placeholder="70"
-            />
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Peso (kg)</label>
+            <input type="number" value={data.weight || ''} onChange={(e) => setData({...data, weight: parseInt(e.target.value) || 0})} className="md3-input w-full" placeholder="70" />
           </div>
-          
           <div className="space-y-2">
-            <label htmlFor="gender" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Genere</label>
-            <select
-              id="gender"
-              value={data.gender}
-              onChange={(e) => setData({...data, gender: e.target.value as 'female' | 'male'})}
-              className="md3-input w-full appearance-none"
-            >
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Genere</label>
+            <select value={data.gender} onChange={(e) => setData({...data, gender: e.target.value as 'female' | 'male'})} className="md3-input w-full appearance-none">
               <option value="female">Donna</option>
               <option value="male">Uomo</option>
             </select>
           </div>
-          
           <div className="space-y-2">
-            <label htmlFor="laf" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">LAF (Livello Attività)</label>
-            <input
-              type="number"
-              id="laf"
-              value={data.laf || ''}
-              onChange={(e) => {
-                const value = parseFloat(e.target.value);
-                const validValue = Math.min(Math.max(value, 1.45), 2.1);
-                const roundedValue = Math.round(validValue * 20) / 20;
-                setData({...data, laf: roundedValue});
-              }}
-              step="0.05"
-              min="1.45"
-              max="2.1"
-              className="md3-input w-full"
-              placeholder="1.45 - 2.1"
-            />
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">LAF</label>
+            <input type="number" value={data.laf || ''} step="0.05" min="1.45" max="2.1" onChange={(e) => setData({...data, laf: parseFloat(e.target.value) || 1.45})} className="md3-input w-full" />
           </div>
-          
           <div className="space-y-2">
-            <label htmlFor="y" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Proteine per kg</label>
-            <input
-              type="number"
-              id="y"
-              value={data.y || ''}
-              onChange={(e) => {
-                const value = parseFloat(e.target.value);
-                const validValue = Math.min(Math.max(value, 0.8), 3);
-                setData({...data, y: validValue});
-              }}
-              step="0.1"
-              min="0.8"
-              max="3"
-              className="md3-input w-full"
-              placeholder="0.8 - 3.0"
-            />
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Proteine/kg</label>
+            <input type="number" value={data.y || ''} step="0.1" min="0.8" max="3" onChange={(e) => setData({...data, y: parseFloat(e.target.value) || 0.8})} className="md3-input w-full" />
           </div>
-          
           <div className="space-y-2">
-            <label htmlFor="dailyDeficit" className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Deficit (kcal)</label>
-            <input
-              type="number"
-              id="dailyDeficit"
-              value={data.dailyDeficit || ''}
-              onChange={(e) => setData({...data, dailyDeficit: parseInt(e.target.value) || 0})}
-              className="md3-input w-full"
-              placeholder="200"
-            />
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Deficit (kcal)</label>
+            <input type="number" value={data.dailyDeficit || ''} onChange={(e) => setData({...data, dailyDeficit: parseInt(e.target.value) || 0})} className="md3-input w-full" />
           </div>
         </div>
         
-        <div className="mt-10 flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={handleCalculate}
-            disabled={!isFormValid}
-            className={`md3-button-primary flex-1 flex items-center justify-center space-x-2 ${
-              !isFormValid ? 'opacity-50 grayscale cursor-not-allowed' : ''
-            }`}
-          >
+        <div className="mt-10">
+          <button onClick={handleCalculate} disabled={!isFormValid} className={`md3-button-primary w-full sm:w-auto flex items-center justify-center space-x-2 ${!isFormValid ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}>
             <Calculator className="w-5 h-5" />
             <span>Calcola Risultati</span>
           </button>
-          
-          <button
-            onClick={handleReset}
-            className="px-8 py-3 bg-sage-100 dark:bg-surface-container-dark text-sage-700 dark:text-sage-300 rounded-full font-bold hover:bg-sage-200 dark:hover:bg-surface-dark transition-all flex items-center justify-center space-x-2"
-          >
-            <RotateCcw className="w-5 h-5" />
-            <span>Reset</span>
-          </button>
+        </div>
+      </div>
+
+      {/* Pannello Parametri di Calcolo Pasti */}
+      <div className="md3-card p-6 sm:p-10 border border-accent-200 dark:border-accent-800/30">
+        <div className="flex items-center space-x-4 mb-8">
+          <div className="w-12 h-12 bg-accent-500 rounded-md3-medium flex items-center justify-center shadow-md3-2">
+            <Settings className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Parametri Calcolo Pasti</h2>
+            <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Target Macronutrienti e Calorie</p>
+          </div>
+        </div>
+
+        {/* Range Percentuali */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          {(['carbs', 'proteins', 'fats'] as const).map((macro) => (
+            <div key={macro} className="bg-surface-container-light dark:bg-surface-container-dark p-6 rounded-md3-medium border border-sage-200 dark:border-sage-800">
+              <div className="flex items-center space-x-2 mb-4">
+                <Percent className="w-4 h-4 text-accent-500" />
+                <span className="text-sm font-black uppercase tracking-widest text-sage-700 dark:text-sage-300">
+                  {macro === 'carbs' ? 'Carboidrati' : macro === 'proteins' ? 'Proteine' : 'Lipidi'}
+                </span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="number"
+                  value={mealRanges[macro].min}
+                  onChange={(e) => handleMealRangeChange(macro, 'min', e.target.value)}
+                  className="md3-input w-full py-2 text-center font-bold"
+                  placeholder="Min %"
+                />
+                <span className="text-sage-400 font-bold">-</span>
+                <input
+                  type="number"
+                  value={mealRanges[macro].max}
+                  onChange={(e) => handleMealRangeChange(macro, 'max', e.target.value)}
+                  className="md3-input w-full py-2 text-center font-bold"
+                  placeholder="Max %"
+                />
+                <span className="text-sage-600 dark:text-sage-400 font-bold">%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Kcal per Pasto della Settimana */}
+        <div className="md3-table-container">
+          <div className="overflow-x-auto">
+            <table className="md3-table">
+              <thead className="md3-table-header">
+                <tr>
+                  <th className="md3-table-th">Giorno</th>
+                  {mealTypes.map(m => <th key={m} className="md3-table-th text-center">{m}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {daysOfWeek.map((day, idx) => (
+                  <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
+                    <td className="md3-table-td font-bold text-sage-900 dark:text-sage-100">{day}</td>
+                    {mealTypes.map(meal => (
+                      <td key={meal} className="md3-table-td p-2">
+                        <input
+                          type="number"
+                          value={dailyMealKcal[day][meal] || ''}
+                          onChange={(e) => handleMealKcalChange(day, meal, e.target.value)}
+                          className="md3-input w-full py-1 text-center text-xs font-bold"
+                          placeholder="kcal"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
       
-      {/* Results Section */}
+      {/* Results Section (BMI, MB, TDEE, etc) */}
       {isCalculated && results && (
         <div className="md3-card p-6 sm:p-10 border border-primary-100 dark:border-primary-900/30">
           <div className="flex items-center space-x-4 mb-8">
-            <div className="w-12 h-12 bg-accent-500 rounded-md3-medium flex items-center justify-center shadow-md3-2">
+            <div className="w-12 h-12 bg-primary-600 rounded-md3-medium flex items-center justify-center shadow-md3-2">
               <Target className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Analisi Nutrizionale</h3>
-              <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Target Suggeriti</p>
+              <h3 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Risultati Analisi</h3>
+              <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Metabolismo e Target</p>
             </div>
           </div>
 
@@ -413,73 +376,66 @@ export const Calculations: React.FC = () => {
             <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
               <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">BMI</p>
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.bmi.toFixed(1)}</p>
-              <div className="mt-3 inline-block px-3 py-1 bg-white dark:bg-surface-dark rounded-full text-xs font-bold text-sage-600 dark:text-sage-400 border border-primary-100 dark:border-primary-800">
-                {getBmiCategory(results.bmi)}
-              </div>
+              <div className="mt-3 inline-block px-3 py-1 bg-white dark:bg-surface-dark rounded-full text-xs font-bold text-sage-600 dark:text-sage-400 border border-primary-100 dark:border-primary-800">{getBmiCategory(results.bmi)}</div>
             </div>
-
             <div className="bg-accent-50 dark:bg-accent-900/10 p-6 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
               <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">Peso Ideale</p>
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.idealWeight.toFixed(1)} <span className="text-lg">kg</span></p>
             </div>
-
             <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
               <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">MB</p>
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.basalMetabolism)} <span className="text-lg">kcal</span></p>
             </div>
-
             <div className="bg-accent-50 dark:bg-accent-900/10 p-6 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
               <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">TDEE</p>
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.dailyMetabolism)} <span className="text-lg">kcal</span></p>
             </div>
-
             <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
               <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">Deficit</p>
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.dailyDeficit)} <span className="text-lg">kcal</span></p>
             </div>
-
             <div className="bg-accent-50 dark:bg-accent-900/10 p-6 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
               <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">Target Proteico</p>
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.dailyProteinRda.toFixed(1)} <span className="text-lg">g</span></p>
             </div>
           </div>
           
-          {/* Tabella limiti calorie giornalieri */}
+          {/* Pianificazione Settimanale Kcal Totali */}
           <div className="mt-10 md3-card bg-surface-container-light dark:bg-surface-container-dark p-6 sm:p-8 border border-sage-200 dark:border-sage-800 shadow-none">
             <h3 className="text-xl font-black text-sage-900 dark:text-sage-50 mb-6 flex items-center">
               <Target className="w-6 h-6 text-primary-600 dark:text-primary-400 mr-3" />
-              Pianificazione Settimanale
+              Pianificazione Settimanale Totale
             </h3>
-            <div className="overflow-x-auto rounded-md3-medium border border-sage-200 dark:border-sage-800">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-primary-100 dark:bg-primary-900/30">
-                    <th className="px-6 py-4 text-left text-primary-900 dark:text-primary-100 font-black uppercase tracking-widest text-xs">Giorno</th>
-                    <th className="px-6 py-4 text-left text-primary-900 dark:text-primary-100 font-black uppercase tracking-widest text-xs">Target Kcal</th>
+            <div className="md3-table-container">
+              <table className="md3-table">
+                <thead className="md3-table-header">
+                  <tr>
+                    <th className="md3-table-th">Giorno</th>
+                    <th className="md3-table-th">Target Kcal</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-sage-200 dark:divide-sage-800">
-                  {daysOfWeek.map((day) => (
-                    <tr key={day} className="bg-white dark:bg-surface-dark hover:bg-sage-50 dark:hover:bg-surface-container-dark transition-colors">
-                      <td className="px-6 py-4 text-sage-700 dark:text-sage-300 font-bold">{day}</td>
-                      <td className="px-6 py-4">
+                <tbody>
+                  {daysOfWeek.map((day, idx) => (
+                    <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
+                      <td className="md3-table-td font-bold">{day}</td>
+                      <td className="md3-table-td">
                         <input
                           type="number"
                           value={dailyCalorieLimits[day] || ''}
                           onChange={(e) => handleDailyLimitChange(day, e.target.value)}
-                          className="w-full max-w-[150px] px-4 py-2 bg-sage-50 dark:bg-surface-container-dark border-none rounded-md3-small focus:ring-2 focus:ring-primary-500 transition-all font-bold text-sage-900 dark:text-sage-50"
+                          className="md3-input w-full max-w-[150px] py-2 font-bold"
                           placeholder="Kcal"
                         />
                       </td>
                     </tr>
                   ))}
                   <tr className="bg-primary-50 dark:bg-primary-900/20 font-bold">
-                    <td className="px-6 py-4 text-primary-900 dark:text-primary-100">Totale Settimanale</td>
-                    <td className="px-6 py-4 text-primary-900 dark:text-primary-100 font-black text-xl">{getTotalWeeklyLimit()} <span className="text-sm">kcal</span></td>
+                    <td className="md3-table-td text-primary-900 dark:text-primary-100">Totale Settimanale Effettivo</td>
+                    <td className="md3-table-td text-primary-900 dark:text-primary-100 font-black text-xl">{getTotalWeeklyLimit()} <span className="text-sm">kcal</span></td>
                   </tr>
                   <tr className="bg-accent-50 dark:bg-accent-900/20 font-bold">
-                    <td className="px-6 py-4 text-accent-900 dark:text-accent-100">Calcolo Teorico</td>
-                    <td className="px-6 py-4 text-accent-900 dark:text-accent-100 font-black text-xl">{Math.round(results.weeklyCalories)} <span className="text-sm">kcal</span></td>
+                    <td className="md3-table-td text-accent-900 dark:text-accent-100">Calcolo Teorico</td>
+                    <td className="md3-table-td text-accent-900 dark:text-accent-100 font-black text-xl">{Math.round(results.weeklyCalories)} <span className="text-sm">kcal</span></td>
                   </tr>
                 </tbody>
               </table>

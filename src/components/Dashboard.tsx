@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, Calendar, CookingPot, Apple, Home } from 'lucide-react';
+import { Calculator, Calendar, CookingPot, Apple } from 'lucide-react';
 import { Calculations } from './Calculations';
 import { Diet } from './Diet';
 import { Recipes } from './Recipes';
 import { Foods } from './Foods';
+import { runOptimizerTests } from '../utils/portionOptimizer.test';
 
 interface DashboardProps {
   user: { name: string; email: string };
@@ -15,6 +16,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   useEffect(() => {
     setError(null);
+    // Esegui i test dell'ottimizzatore in modalità sviluppo
+    if (import.meta.env.DEV) {
+      runOptimizerTests();
+    }
   }, [activeTab]);
 
   const tabs = [

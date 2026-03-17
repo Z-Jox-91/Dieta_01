@@ -231,32 +231,35 @@ export const Diet: React.FC = () => {
           title="Colazione"
           mealData={getCurrentDayData().breakfast}
           onUpdate={(data) => updateDayData({ ...getCurrentDayData(), breakfast: data })}
+          dayName={daysOfWeek[selectedDay]}
         />
         
         <MealSection
-          title="Spuntino Mattina"
+          title="Spuntino1"
           mealData={getCurrentDayData().morningSnack}
           onUpdate={(data) => updateDayData({ ...getCurrentDayData(), morningSnack: data })}
+          dayName={daysOfWeek[selectedDay]}
         />
         
         <MealSection
           title="Pranzo"
           mealData={getCurrentDayData().lunch}
           onUpdate={(data) => updateDayData({ ...getCurrentDayData(), lunch: data })}
-          showChart={true}
+          dayName={daysOfWeek[selectedDay]}
         />
         
         <MealSection
-          title="Spuntino Pomeriggio"
+          title="Spuntino2"
           mealData={getCurrentDayData().afternoonSnack}
           onUpdate={(data) => updateDayData({ ...getCurrentDayData(), afternoonSnack: data })}
+          dayName={daysOfWeek[selectedDay]}
         />
         
         <MealSection
           title="Cena"
           mealData={getCurrentDayData().dinner}
           onUpdate={(data) => updateDayData({ ...getCurrentDayData(), dinner: data })}
-          showChart={true}
+          dayName={daysOfWeek[selectedDay]}
         />
       </div>
     </div>

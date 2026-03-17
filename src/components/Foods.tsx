@@ -478,46 +478,46 @@ export const Foods: React.FC = () => {
         )}
 
         {/* Tabella alimenti - Desktop */}
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-sage-50">
+        <div className="hidden lg:block md3-table-container">
+          <table className="md3-table">
+            <thead className="md3-table-header">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Nome</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Unità</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Categoria</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Energia (kcal)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Carboidrati (g)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Proteine (g)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Lipidi (g)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-sage-500 uppercase tracking-wider">Azioni</th>
+                <th className="md3-table-th">Nome</th>
+                <th className="md3-table-th">Unità</th>
+                <th className="md3-table-th">Categoria</th>
+                <th className="md3-table-th">Energia (kcal)</th>
+                <th className="md3-table-th">Carboidrati (g)</th>
+                <th className="md3-table-th">Proteine (g)</th>
+                <th className="md3-table-th">Lipidi (g)</th>
+                <th className="md3-table-th text-right">Azioni</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-sage-200">
-              {filteredFoods.map((food) => (
-                <tr key={food.id} className="hover:bg-sage-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+            <tbody>
+              {filteredFoods.map((food, index) => (
+                <tr key={food.id} className={`md3-table-tr ${index % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
+                  <td className="md3-table-td font-medium">
                     {editingId === food.id ? (
                       <input
                         type="text"
                         value={editFood.name}
                         onChange={(e) => setEditFood(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="md3-input py-1 px-2 text-sm w-full"
                       />
                     ) : (
                       <div className="flex flex-col">
-                        <div className="text-sm font-medium text-sage-900">{food.name}</div>
+                        <div className="text-sage-900 dark:text-sage-50">{food.name}</div>
                         {food.creatorId === auth.currentUser?.uid && (
-                          <span className="text-[10px] text-primary-600 font-semibold uppercase">Creato da te</span>
+                          <span className="text-[10px] text-primary-600 dark:text-primary-400 font-black uppercase tracking-tighter">Creato da te</span>
                         )}
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sage-900">
+                  <td className="md3-table-td">
                     {editingId === food.id ? (
                       <select
                         value={editFood.unit}
                         onChange={(e) => setEditFood(prev => ({ ...prev, unit: e.target.value }))}
-                        className="px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="md3-input py-1 px-2 text-sm"
                       >
                         <option value="g">g</option>
                         <option value="ml">ml</option>
@@ -527,18 +527,18 @@ export const Foods: React.FC = () => {
                       food.unit || 'g'
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCategoryColor(food.category)}`}>
+                  <td className="md3-table-td">
+                    <span className={`inline-flex px-2 py-1 text-[10px] font-black uppercase tracking-widest rounded-full ${getCategoryColor(food.category)}`}>
                       {getCategoryLabel(food.category)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sage-900">
+                  <td className="md3-table-td font-bold text-sage-900 dark:text-sage-50">
                     {editingId === food.id ? (
                       <input
                         type="number"
                         value={editFood.calories}
                         onChange={(e) => setEditFood(prev => ({ ...prev, calories: parseFloat(e.target.value) || 0 }))}
-                        className="w-20 px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="md3-input py-1 px-2 text-sm w-20"
                         min="0"
                         step="0.1"
                       />
@@ -546,13 +546,13 @@ export const Foods: React.FC = () => {
                       food.calories.toFixed(1)
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sage-900">
+                  <td className="md3-table-td">
                     {editingId === food.id ? (
                       <input
                         type="number"
                         value={editFood.carbs}
                         onChange={(e) => setEditFood(prev => ({ ...prev, carbs: parseFloat(e.target.value) || 0 }))}
-                        className="w-20 px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="md3-input py-1 px-2 text-sm w-16"
                         min="0"
                         step="0.1"
                       />
@@ -560,13 +560,13 @@ export const Foods: React.FC = () => {
                       food.carbs.toFixed(1)
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sage-900">
+                  <td className="md3-table-td">
                     {editingId === food.id ? (
                       <input
                         type="number"
                         value={editFood.proteins}
                         onChange={(e) => setEditFood(prev => ({ ...prev, proteins: parseFloat(e.target.value) || 0 }))}
-                        className="w-20 px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="md3-input py-1 px-2 text-sm w-16"
                         min="0"
                         step="0.1"
                       />
@@ -574,13 +574,13 @@ export const Foods: React.FC = () => {
                       food.proteins.toFixed(1)
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sage-900">
+                  <td className="md3-table-td">
                     {editingId === food.id ? (
                       <input
                         type="number"
                         value={editFood.fats}
                         onChange={(e) => setEditFood(prev => ({ ...prev, fats: parseFloat(e.target.value) || 0 }))}
-                        className="w-20 px-2 py-1 border border-sage-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="md3-input py-1 px-2 text-sm w-16"
                         min="0"
                         step="0.1"
                       />
@@ -588,35 +588,47 @@ export const Foods: React.FC = () => {
                       food.fats.toFixed(1)
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="md3-table-td text-right">
                     {editingId === food.id ? (
-                      <div className="flex space-x-2">
+                      <div className="flex justify-end space-x-2">
                         <button
                           onClick={saveEdit}
-                          className="text-green-600 hover:text-green-900"
+                          className="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full hover:bg-primary-200 transition-colors shadow-sm"
+                          title="Salva"
                         >
                           <Save className="w-4 h-4" />
                         </button>
                         <button
                           onClick={cancelEdit}
-                          className="text-gray-600 hover:text-gray-900"
+                          className="p-2 bg-sage-100 dark:bg-sage-800 text-sage-600 dark:text-sage-400 rounded-full hover:bg-sage-200 transition-colors shadow-sm"
+                          title="Annulla"
                         >
                           <X className="w-4 h-4" />
                         </button>
                       </div>
                     ) : (
-                      <div className="flex space-x-2">
+                      <div className="flex justify-end space-x-2">
                         <button
                           onClick={() => startEditing(food)}
-                          className={`text-primary-600 hover:text-primary-900 ${food.creatorId !== auth.currentUser?.uid ? 'opacity-30 cursor-not-allowed' : ''}`}
+                          className={`p-2 rounded-full transition-all duration-200 ${
+                            food.creatorId === auth.currentUser?.uid 
+                              ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 shadow-sm' 
+                              : 'bg-sage-50 dark:bg-sage-900/10 text-sage-300 dark:text-sage-700 cursor-not-allowed'
+                          }`}
                           disabled={food.creatorId !== auth.currentUser?.uid}
+                          title="Modifica"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteFood(food)}
-                          className={`text-red-600 hover:text-red-900 ${food.creatorId !== auth.currentUser?.uid ? 'opacity-30 cursor-not-allowed' : ''}`}
+                          className={`p-2 rounded-full transition-all duration-200 ${
+                            food.creatorId === auth.currentUser?.uid 
+                              ? 'bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 shadow-sm' 
+                              : 'bg-sage-50 dark:bg-sage-900/10 text-sage-300 dark:text-sage-700 cursor-not-allowed'
+                          }`}
                           disabled={food.creatorId !== auth.currentUser?.uid}
+                          title="Elimina"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

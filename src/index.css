@@ -38,27 +38,69 @@
   }
 
   .md3-input {
-    @apply bg-sage-50 dark:bg-surface-container-dark border-none rounded-md3-small px-4 py-3 focus:ring-2 focus:ring-primary-500 transition-all;
+    @apply bg-sage-50 dark:bg-surface-container-dark border-none rounded-md3-small px-4 py-3 focus:ring-2 focus:ring-primary-500 transition-all text-sage-900 dark:text-sage-100 placeholder-sage-400 dark:placeholder-sage-500;
+  }
+
+  .md3-table-container {
+    @apply overflow-hidden rounded-md3-medium border border-sage-200 dark:border-sage-800 bg-white dark:bg-surface-dark shadow-md3-1;
+  }
+
+  .md3-table {
+    @apply w-full border-collapse text-left;
+  }
+
+  .md3-table-header {
+    @apply bg-primary-50 dark:bg-primary-900/20 text-primary-900 dark:text-primary-100 font-black uppercase tracking-widest text-xs sticky top-0 z-10;
+  }
+
+  .md3-table-th {
+    @apply px-6 py-4;
+  }
+
+  .md3-table-tr {
+    @apply border-b border-sage-100 dark:border-sage-800 last:border-0 hover:bg-sage-50/50 dark:hover:bg-surface-container-dark/50 transition-colors duration-200;
+  }
+
+  .md3-table-tr-even {
+    @apply bg-sage-50/30 dark:bg-surface-container-dark/20;
+  }
+
+  .md3-table-td {
+    @apply px-6 py-4 text-sm text-sage-700 dark:text-sage-300;
+  }
+
+  .md3-dropdown {
+    @apply absolute z-50 mt-2 w-full bg-white dark:bg-surface-container-dark rounded-md3-small shadow-md3-3 border border-sage-200 dark:border-sage-800 overflow-hidden;
+  }
+
+  .md3-dropdown-item {
+    @apply px-4 py-3 hover:bg-primary-50 dark:hover:bg-primary-900/30 cursor-pointer transition-colors flex items-center space-x-3 text-sage-700 dark:text-sage-200;
+  }
+
+  .md3-modal-overlay {
+    @apply fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in;
+  }
+
+  .md3-modal-content {
+    @apply bg-white dark:bg-surface-dark rounded-md3-large shadow-md3-3 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-slide-up;
   }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 3px;
+  @apply bg-sage-50 dark:bg-surface-dark;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #22c55e, #3b82f6);
-  border-radius: 3px;
+  @apply bg-sage-300 dark:bg-sage-700 rounded-full border-4 border-transparent bg-clip-content;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #16a34a, #2563eb);
+  @apply bg-sage-400 dark:bg-sage-600;
 }
 
 /* Smooth focus transitions */
