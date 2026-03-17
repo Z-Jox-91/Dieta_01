@@ -489,8 +489,4 @@ export const Calculations: React.FC = () => {
       )}
     </div>
   );
-
-
-    </div>
-  );
 };
