@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Calculator, RefreshCw, Check, AlertCircle } from 'lucide-react';
-import { FoodMacroProfile, MacroTarget, optimizePortions } from '../../utils/portionOptimizer';
+import { Target, Calculator, RefreshCw, Check, AlertCircle, Info, TrendingUp, Lightbulb } from 'lucide-react';
+import { FoodMacroProfile, MacroTarget, optimizePortions, OptimizationResult } from '../../utils/portionOptimizer';
 import { db, auth } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -18,7 +18,7 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
   mealType
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<OptimizationResult | null>(null);
   const [target, setTarget] = useState<MacroTarget>({
     totalCalories: 500,
     carbsPercent: 50,
@@ -53,20 +53,16 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
   }, [isOpen, dayName, mealType]);
 
   const handleOptimize = () => {
-    setError(null);
-    const results = optimizePortions(selectedFoods, target);
-    
-    // Validazione real-time dei risultati
-    if (results.some(r => r.grams === 0) && selectedFoods.length > 0) {
-      setError("Impossibile trovare una soluzione ottimale con questi alimenti. Prova a cambiare combinazione.");
-      return;
-    }
+    const optimizationResult = optimizePortions(selectedFoods, target);
+    setResult(optimizationResult);
+  };
 
+  const applyResults = () => {
+    if (!result) return;
     const optimizedGrams: { [foodId: string]: number } = {};
-    results.forEach(res => {
+    result.portions.forEach(res => {
       optimizedGrams[res.foodId] = res.grams;
     });
-
     onApply(optimizedGrams);
     setIsOpen(false);
   };
@@ -77,69 +73,112 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
     <div className="mt-6 pt-6 border-t border-sage-200 dark:border-sage-800">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 px-6 py-3 bg-accent-500 text-white rounded-full hover:bg-accent-600 transition-all shadow-md3-1 hover:shadow-md3-2 active:scale-95"
+        className="flex items-center space-x-2 px-6 py-3 bg-primary-600 dark:bg-primary-500 text-white rounded-full hover:bg-primary-700 transition-all shadow-lg active:scale-95"
       >
         <Calculator className="w-5 h-5" />
-        <span className="font-bold uppercase tracking-wider text-xs">Ottimizzazione Automatica MacroMind</span>
+        <span className="font-bold uppercase tracking-wider text-xs">Ottimizzatore MacroMind</span>
       </button>
 
       {isOpen && (
-        <div className="mt-4 md3-card p-6 border border-accent-100 dark:border-accent-900/30 animate-in fade-in slide-in-from-top-2">
+        <div className="mt-4 bg-white dark:bg-surface-dark p-6 rounded-3xl border border-sage-200 dark:border-sage-800 shadow-2xl animate-in fade-in slide-in-from-top-4">
           <div className="flex items-center justify-between mb-6">
-            <h4 className="text-lg font-black text-sage-900 dark:text-sage-50 flex items-center">
-              <Target className="w-5 h-5 mr-3 text-accent-500" />
-              Target Pasto: {mealType} ({dayName})
+            <h4 className="text-lg font-bold text-sage-900 dark:text-sage-50 flex items-center">
+              <Target className="w-5 h-5 mr-3 text-primary-500" />
+              Target Pasto: {mealType}
             </h4>
-            <button onClick={() => setIsOpen(false)} className="text-sage-400 hover:text-sage-600 dark:hover:text-sage-200 transition-colors">
+            <button onClick={() => setIsOpen(false)} className="text-sage-400 hover:text-sage-600 dark:hover:text-sage-200">
               <RefreshCw className="w-5 h-5" />
             </button>
           </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md3-small flex items-center space-x-3 text-red-600 dark:text-red-400">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <p className="text-sm font-medium">{error}</p>
+          {/* Target Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-sage-50 dark:bg-sage-900/20 p-4 rounded-2xl border border-sage-100 dark:border-sage-800">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-sage-500 mb-1">Calorie</label>
+              <div className="text-xl font-bold text-sage-900 dark:text-sage-50">{target.totalCalories} <span className="text-xs">kcal</span></div>
+            </div>
+            <div className="bg-primary-50 dark:bg-primary-900/10 p-4 rounded-2xl border border-primary-100 dark:border-primary-800/30">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-primary-700 dark:text-primary-300 mb-1">Carbo</label>
+              <div className="text-xl font-bold text-sage-900 dark:text-sage-50">{target.carbsPercent}%</div>
+            </div>
+            <div className="bg-accent-50 dark:bg-accent-900/10 p-4 rounded-2xl border border-accent-100 dark:border-accent-800/30">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-accent-700 dark:text-accent-300 mb-1">Proteine</label>
+              <div className="text-xl font-bold text-sage-900 dark:text-sage-50">{target.proteinsPercent}%</div>
+            </div>
+            <div className="bg-primary-50 dark:bg-primary-900/10 p-4 rounded-2xl border border-primary-100 dark:border-primary-800/30">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-primary-700 dark:text-primary-300 mb-1">Lipidi</label>
+              <div className="text-xl font-bold text-sage-900 dark:text-sage-50">{target.fatsPercent}%</div>
+            </div>
+          </div>
+
+          {!result ? (
+            <button
+              onClick={handleOptimize}
+              className="w-full py-4 bg-accent-500 text-white rounded-2xl font-bold hover:bg-accent-600 transition-all flex items-center justify-center space-x-2"
+            >
+              <Calculator className="w-5 h-5" />
+              <span>Calcola Porzioni Ottimali</span>
+            </button>
+          ) : (
+            <div className="space-y-6 animate-in fade-in duration-500">
+              {/* Risultato Ottimizzazione */}
+              <div className="p-5 bg-sage-50 dark:bg-sage-900/30 rounded-2xl border border-sage-100 dark:border-sage-800">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className={`w-5 h-5 ${result.isFeasible ? 'text-green-500' : 'text-orange-500'}`} />
+                    <span className="font-bold text-sage-900 dark:text-sage-100">Accuratezza Soluzione</span>
+                  </div>
+                  <span className={`text-lg font-black ${result.accuracy > 90 ? 'text-green-500' : result.accuracy > 70 ? 'text-orange-500' : 'text-red-500'}`}>
+                    {Math.round(result.accuracy)}%
+                  </span>
+                </div>
+                <div className="w-full bg-sage-200 dark:bg-sage-800 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-1000 ${result.accuracy > 90 ? 'bg-green-500' : result.accuracy > 70 ? 'bg-orange-500' : 'bg-red-500'}`}
+                    style={{ width: `${result.accuracy}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Suggerimenti Intelligenti */}
+              {result.suggestions && result.suggestions.length > 0 && (
+                <div className="p-5 bg-primary-50 dark:bg-primary-900/20 rounded-2xl border border-primary-100 dark:border-primary-800/30">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <Lightbulb className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                    <span className="font-bold text-primary-900 dark:text-primary-100">Consigli Proattivi</span>
+                  </div>
+                  <ul className="space-y-2">
+                    {result.suggestions.map((s, i) => (
+                      <li key={i} className="text-sm text-primary-800 dark:text-primary-300 flex items-start space-x-2">
+                        <span className="mt-1.5 w-1.5 h-1.5 bg-primary-400 rounded-full flex-shrink-0"></span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  onClick={() => setResult(null)}
+                  className="flex-1 py-3 border border-sage-200 dark:border-sage-800 text-sage-600 dark:text-sage-400 font-bold rounded-2xl hover:bg-sage-50 dark:hover:bg-sage-900/50"
+                >
+                  Ricalcola
+                </button>
+                <button
+                  onClick={applyResults}
+                  className="flex-[2] py-3 bg-green-500 text-white font-bold rounded-2xl hover:bg-green-600 shadow-lg flex items-center justify-center space-x-2"
+                >
+                  <Check className="w-5 h-5" />
+                  <span>Applica {result.portions.length} Porzioni</span>
+                </button>
+              </div>
             </div>
           )}
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-surface-container-light dark:bg-surface-container-dark p-4 rounded-md3-small border border-sage-100 dark:border-sage-800">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-sage-500 mb-1">Calorie</label>
-              <div className="text-xl font-black text-sage-900 dark:text-sage-50">{target.totalCalories} <span className="text-xs">kcal</span></div>
-            </div>
-            <div className="bg-primary-50 dark:bg-primary-900/10 p-4 rounded-md3-small border border-primary-100 dark:border-primary-800/30">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-primary-700 dark:text-primary-300 mb-1">Carboidrati</label>
-              <div className="text-xl font-black text-sage-900 dark:text-sage-50">{target.carbsPercent}%</div>
-            </div>
-            <div className="bg-accent-50 dark:bg-accent-900/10 p-4 rounded-md3-small border border-accent-100 dark:border-accent-800/30">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-accent-700 dark:text-accent-300 mb-1">Proteine</label>
-              <div className="text-xl font-black text-sage-900 dark:text-sage-50">{target.proteinsPercent}%</div>
-            </div>
-            <div className="bg-primary-50 dark:bg-primary-900/10 p-4 rounded-md3-small border border-primary-100 dark:border-primary-800/30">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-primary-700 dark:text-primary-300 mb-1">Lipidi</label>
-              <div className="text-xl font-black text-sage-900 dark:text-sage-50">{target.fatsPercent}%</div>
-            </div>
-          </div>
-
-          <p className="text-xs text-sage-500 dark:text-sage-400 mb-6 italic">
-            * I target sono calcolati automaticamente in base ai parametri impostati nella scheda "Calcoli".
+          <p className="mt-6 text-[10px] text-sage-400 dark:text-sage-500 text-center uppercase tracking-widest font-bold">
+            Algoritmo MacroMind v2.0 • Gerarchia Nutrizionale Attiva
           </p>
-
-          <div className="flex justify-end space-x-3 pt-6 border-t border-sage-100 dark:border-sage-800">
-            <button
-              onClick={() => setIsOpen(false)}
-              className="px-6 py-2 text-sage-600 dark:text-sage-400 font-bold hover:bg-sage-100 dark:hover:bg-sage-800 rounded-full transition-colors"
-            >
-              Annulla
-            </button>
-            <button
-              onClick={handleOptimize}
-              className="md3-button-primary px-8 flex items-center shadow-md3-2"
-            >
-              <Check className="w-5 h-5 mr-2" />
-              Ottimizza Porzioni
-            </button>
-          </div>
         </div>
       )}
     </div>
