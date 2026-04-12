@@ -68,10 +68,12 @@ export const MealSection: React.FC<MealSectionProps> = ({
     }), { calories: 0, proteins: 0, carbs: 0, fats: 0 });
   };
 
-  const handleApplyOptimization = (optimizedGrams: { [foodId: string]: number }) => {
+  const handleApplyOptimization = (optimizationResult: OptimizationResult) => {
+    const { portions } = optimizationResult;
     const updatedData = mealData.map(item => {
-      if (optimizedGrams[item.id] !== undefined) {
-        const grams = optimizedGrams[item.id];
+      const optimizedPortion = portions.find(p => p.foodId === item.id);
+      if (optimizedPortion) {
+        const grams = optimizedPortion.grams;
         const baseCalories = item.baseCalories || (item.calories / (item.grams || 1)) * 100;
         const baseProteins = item.baseProteins || (item.proteins / (item.grams || 1)) * 100;
         const baseCarbs = item.baseCarbs || (item.carbs / (item.grams || 1)) * 100;

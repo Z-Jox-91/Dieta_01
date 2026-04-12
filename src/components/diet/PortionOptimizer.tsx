@@ -6,7 +6,7 @@ import { doc, getDoc } from 'firebase/firestore';
 
 interface PortionOptimizerProps {
   selectedFoods: FoodMacroProfile[];
-  onApply: (optimizedGrams: { [foodId: string]: number }) => void;
+  onApply: (result: OptimizationResult) => void;
   dayName: string;
   mealType: string;
 }
@@ -59,11 +59,7 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
 
   const applyResults = () => {
     if (!result) return;
-    const optimizedGrams: { [foodId: string]: number } = {};
-    result.portions.forEach(res => {
-      optimizedGrams[res.foodId] = res.grams;
-    });
-    onApply(optimizedGrams);
+    onApply(result);
     setIsOpen(false);
   };
 

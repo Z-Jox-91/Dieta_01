@@ -15,18 +15,17 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
   });
 
   useEffect(() => {
-    // Apply theme on mount
+    // Apply theme on mount and when isDark changes
     if (isDark) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, []);
+  }, [isDark]);
 
   const toggleDarkMode = () => {
     const newIsDark = !isDark;
     setIsDark(newIsDark);
-    document.documentElement.classList.toggle('dark', newIsDark);
     localStorage.setItem('theme', newIsDark ? 'dark' : 'light');
   };
 
