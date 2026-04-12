@@ -1,0 +1,267 @@
+import React, { useState, useEffect } from 'react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DaySelector } from './diet/DaySelector';
+import { MealSection } from './diet/MealSection';
+import { DayStats } from './diet/DayStats';
+import { db, auth } from '../firebase';
+import { collection, doc, getDoc, setDoc, getDocs } from 'firebase/firestore';
+
+// Definizione delle interfacce per i dati
+interface MealItem {
+  id: string;
+  food: string;
+  grams: number;
+  calories: number;
+  proteins: number;
+  carbs: number;
+  fats: number;
+  category?: string;
+}
+
+interface DayMeals {
+  breakfast: MealItem[];
+  morningSnack: MealItem[];
+  lunch: MealItem[];
+  afternoonSnack: MealItem[];
+  dinner: MealItem[];
+}
+
+interface MealsDataStore {
+  [key: string]: DayMeals;
+}
+
+const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+
+export const Diet: React.FC = () => {
+  const [selectedDay, setSelectedDay] = useState(0);
+  const [currentWeek, setCurrentWeek] = useState(0);
+  const [mealsData, setMealsData] = useState<MealsDataStore>({});
+
+  useEffect(() => {
+    const loadMealsData = async () => {
+      if (!auth.currentUser) return;
+      
+      try {
+        // Prima controlla se ci sono dati in localStorage da migrare
+        const saved = localStorage.getItem('piano_alimentare_meals');
+        if (saved) {
+          try {
+            const parsedData = JSON.parse(saved);
+            if (parsedData && typeof parsedData === 'object' && Object.keys(parsedData).length > 0) {
+              // Migra i dati da localStorage a Firestore
+              await migrateLocalStorageToFirestore(parsedData);
+              // Rimuovi i dati da localStorage dopo la migrazione
+              localStorage.removeItem('piano_alimentare_meals');
+            }
+          } catch (error) {
+            console.error('Errore nella migrazione dei pasti:', error);
+          }
+        }
+        
+        // Carica i dati da Firestore
+        const mealsDoc = doc(db, `users/${auth.currentUser.uid}/data/meals`);
+        const mealsSnapshot = await getDoc(mealsDoc);
+        
+        if (mealsSnapshot.exists()) {
+          const mealsData = mealsSnapshot.data() as MealsDataStore;
+          setMealsData(mealsData);
+        } else {
+          console.log('Nessun dato pasti trovato, inizializzazione con oggetto vuoto');
+          setMealsData({});
+        }
+      } catch (error) {
+        console.error('Errore nel caricamento dei dati da Firestore:', error);
+        // In caso di errore, inizializza con un oggetto vuoto
+        setMealsData({});
+      }
+    };
+    
+    loadMealsData();
+  }, []);
+
+  // Funzione per migrare i dati da localStorage a Firestore
+  const migrateLocalStorageToFirestore = async (mealsData: MealsDataStore) => {
+    if (!auth.currentUser) return;
+    
+    try {
+      const mealsDoc = doc(db, `users/${auth.currentUser.uid}/data/meals`);
+      await setDoc(mealsDoc, mealsData);
+      console.log('Migrazione dei pasti completata con successo');
+    } catch (error) {
+      console.error('Errore durante la migrazione dei pasti:', error);
+    }
+  };
+  
+  const saveMealsData = async (data: MealsDataStore) => {
+    try {
+      setMealsData(data);
+      
+      if (auth.currentUser) {
+        const mealsDoc = doc(db, `users/${auth.currentUser.uid}/data/meals`);
+        await setDoc(mealsDoc, data);
+      } else {
+        console.error('Utente non autenticato, impossibile salvare i dati');
+      }
+    } catch (error) {
+      console.error('Errore nel salvataggio dei dati su Firestore:', error);
+    }
+  };
+
+  const getWeekKey = () => `week_${currentWeek}`;
+  const getDayKey = () => `${getWeekKey()}_day_${selectedDay}`;
+
+  const getCurrentDayData = (): DayMeals => {
+    try {
+      const dayKey = getDayKey();
+      const dayData = mealsData[dayKey];
+      
+      // Se non ci sono dati per il giorno corrente o sono incompleti, crea un oggetto completo
+      if (!dayData) {
+        return {
+          breakfast: [],
+          morningSnack: [],
+          lunch: [],
+          afternoonSnack: [],
+          dinner: []
+        };
+      }
+      
+      // Assicurati che tutte le proprietà esistano
+      return {
+        breakfast: Array.isArray(dayData.breakfast) ? dayData.breakfast : [],
+        morningSnack: Array.isArray(dayData.morningSnack) ? dayData.morningSnack : [],
+        lunch: Array.isArray(dayData.lunch) ? dayData.lunch : [],
+        afternoonSnack: Array.isArray(dayData.afternoonSnack) ? dayData.afternoonSnack : [],
+        dinner: Array.isArray(dayData.dinner) ? dayData.dinner : []
+      };
+    } catch (error) {
+      console.error('Errore nel recupero dei dati del giorno:', error);
+      // In caso di errore, ritorna un oggetto vuoto ma completo
+      return {
+        breakfast: [],
+        morningSnack: [],
+        lunch: [],
+        afternoonSnack: [],
+        dinner: []
+      };
+    }
+  };
+
+  const updateDayData = (newData: DayMeals) => {
+    try {
+      const dayKey = getDayKey();
+      const updated = {
+        ...mealsData,
+        [dayKey]: newData
+      };
+      saveMealsData(updated);
+      
+      // Assicurati che l'eliminazione dei pasti venga sincronizzata con Firestore
+      if (auth.currentUser) {
+        const mealsDoc = doc(db, `users/${auth.currentUser.uid}/data/meals`);
+        setDoc(mealsDoc, updated, { merge: true });
+      }
+    } catch (error) {
+      console.error('Errore nell\'aggiornamento dei dati del giorno:', error);
+    }
+  };
+
+  const getCurrentWeekDate = () => {
+    const today = new Date();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay() + 1 + (currentWeek * 7));
+    return weekStart;
+  };
+
+  const formatWeekRange = () => {
+    const weekStart = getCurrentWeekDate();
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    return `${weekStart.getDate()}/${weekStart.getMonth() + 1} - ${weekEnd.getDate()}/${weekEnd.getMonth() + 1}`;
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Week Navigation */}
+      <div className="md3-card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <Calendar className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+            <h2 className="text-xl font-bold text-sage-900 dark:text-sage-50 mb-0">Piano Alimentare</h2>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setCurrentWeek(prev => prev - 1)}
+              className="p-2 text-sage-600 dark:text-sage-400 hover:text-sage-900 dark:hover:text-sage-100 hover:bg-sage-100 dark:hover:bg-surface-container-dark rounded-lg transition-colors duration-200"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            
+            <div className="text-center">
+              <p className="text-sm font-medium text-sage-900 dark:text-sage-50">
+                Settimana {currentWeek === 0 ? 'corrente' : currentWeek > 0 ? `+${currentWeek}` : currentWeek}
+              </p>
+              <p className="text-xs text-sage-600 dark:text-sage-400">{formatWeekRange()}</p>
+            </div>
+            
+            <button
+              onClick={() => setCurrentWeek(prev => prev + 1)}
+              className="p-2 text-sage-600 dark:text-sage-400 hover:text-sage-900 dark:hover:text-sage-100 hover:bg-sage-100 dark:hover:bg-surface-container-dark rounded-lg transition-colors duration-200"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <DaySelector
+          days={daysOfWeek}
+          selectedDay={selectedDay}
+          onDaySelect={setSelectedDay}
+        />
+      </div>
+
+      {/* Day Stats */}
+      <DayStats dayData={getCurrentDayData()} selectedDay={selectedDay} />
+
+      {/* Meals */}
+      <div className="space-y-6">
+        <MealSection
+          title="Colazione"
+          mealData={getCurrentDayData().breakfast}
+          onUpdate={(data) => updateDayData({ ...getCurrentDayData(), breakfast: data })}
+          dayName={daysOfWeek[selectedDay]}
+        />
+        
+        <MealSection
+          title="Spuntino1"
+          mealData={getCurrentDayData().morningSnack}
+          onUpdate={(data) => updateDayData({ ...getCurrentDayData(), morningSnack: data })}
+          dayName={daysOfWeek[selectedDay]}
+        />
+        
+        <MealSection
+          title="Pranzo"
+          mealData={getCurrentDayData().lunch}
+          onUpdate={(data) => updateDayData({ ...getCurrentDayData(), lunch: data })}
+          dayName={daysOfWeek[selectedDay]}
+        />
+        
+        <MealSection
+          title="Spuntino2"
+          mealData={getCurrentDayData().afternoonSnack}
+          onUpdate={(data) => updateDayData({ ...getCurrentDayData(), afternoonSnack: data })}
+          dayName={daysOfWeek[selectedDay]}
+        />
+        
+        <MealSection
+          title="Cena"
+          mealData={getCurrentDayData().dinner}
+          onUpdate={(data) => updateDayData({ ...getCurrentDayData(), dinner: data })}
+          dayName={daysOfWeek[selectedDay]}
+        />
+      </div>
+    </div>
+  );
+};
