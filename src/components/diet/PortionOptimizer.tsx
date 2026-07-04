@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Calculator, RefreshCw, Check, AlertCircle, Info, TrendingUp, Lightbulb } from 'lucide-react';
+import { Target, Calculator, RefreshCw, Check, TrendingUp, Lightbulb } from 'lucide-react';
 import { FoodMacroProfile, MacroTarget, optimizePortions, OptimizationResult } from '../../utils/portionOptimizer';
+import { CREA_TARGET, CREA_RANGES } from '../../utils/mealBalance';
 import { db, auth } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -21,9 +22,9 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
   const [result, setResult] = useState<OptimizationResult | null>(null);
   const [target, setTarget] = useState<MacroTarget>({
     totalCalories: 500,
-    carbsPercent: 50,
-    proteinsPercent: 30,
-    fatsPercent: 20
+    carbsPercent: CREA_TARGET.carbsPercent,
+    proteinsPercent: CREA_TARGET.proteinsPercent,
+    fatsPercent: CREA_TARGET.fatsPercent
   });
 
   // Carica i parametri dal database in base al giorno e al tipo di pasto
@@ -36,13 +37,21 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
         if (snapshot.exists()) {
           const data = snapshot.data();
           const mealKcal = data.dailyMealKcal?.[dayName]?.[mealType] || 500;
-          const ranges = data.ranges || { carbs: { min: 45, max: 55 }, proteins: { min: 25, max: 35 }, fats: { min: 15, max: 25 } };
-          
+          const ranges = data.ranges || CREA_RANGES;
+
+          // Punto medio dei range, normalizzato perché la somma faccia 100%
+          const mid = {
+            carbs: (ranges.carbs.min + ranges.carbs.max) / 2,
+            proteins: (ranges.proteins.min + ranges.proteins.max) / 2,
+            fats: (ranges.fats.min + ranges.fats.max) / 2
+          };
+          const sum = mid.carbs + mid.proteins + mid.fats || 100;
+
           setTarget({
             totalCalories: mealKcal,
-            carbsPercent: (ranges.carbs.min + ranges.carbs.max) / 2,
-            proteinsPercent: (ranges.proteins.min + ranges.proteins.max) / 2,
-            fatsPercent: (ranges.fats.min + ranges.fats.max) / 2
+            carbsPercent: Math.round((mid.carbs / sum) * 1000) / 10,
+            proteinsPercent: Math.round((mid.proteins / sum) * 1000) / 10,
+            fatsPercent: Math.round((mid.fats / sum) * 1000) / 10
           });
         }
       } catch (e) {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, User, Trash2, Loader2, Sparkles, Save, Info, X } from 'lucide-react';
+import { Bot, Send, User, Trash2, Loader2, Sparkles, X } from 'lucide-react';
 import { sendMessageToGemini, ChatMessage } from '../utils/gemini';
 import { db, auth } from '../firebase';
 import { collection, getDocs, doc, setDoc, query, orderBy, onSnapshot, deleteDoc, serverTimestamp } from 'firebase/firestore';
@@ -85,8 +85,6 @@ export const AIAssistant: React.FC = () => {
         dietGoals: userProfile?.goals
       });
 
-      const assistantMessage: ChatMessage = { role: 'model', parts: [{ text: responseText }] };
-      
       // Salva la risposta dell'assistente su Firestore
       await setDoc(doc(historyRef), { 
         role: 'model', 
@@ -197,7 +195,7 @@ export const AIAssistant: React.FC = () => {
                     msg.role === 'user' 
                       ? 'bg-accent-500 text-white rounded-tr-none' 
                       : 'bg-white dark:bg-surface-container-dark text-sage-800 dark:text-sage-200 border border-sage-100 dark:border-sage-800 rounded-tl-none'
-                  }`}>
+                  } whitespace-pre-wrap`}>
                     {msg.parts[0].text}
                   </div>
                 </div>
@@ -220,7 +218,7 @@ export const AIAssistant: React.FC = () => {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSend()}
                 placeholder="Chiedi supporto..."
                 className="flex-1 bg-transparent border-none focus:ring-0 text-sm px-2 text-sage-800 dark:text-sage-200"
               />

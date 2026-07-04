@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Upload, Trash2, Edit3, Save, X, CheckCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db, auth } from '../firebase';
-import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 export interface FoodItem {
   id: string;
@@ -304,37 +304,38 @@ export const Foods: React.FC = () => {
     <>
     <div className="space-y-8">
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-        <h1 className="text-2xl font-bold text-sage-900 mb-4">Database Alimenti</h1>
-        <p className="text-sage-600">Gestisci il tuo database personalizzato di alimenti con le relative proprietà nutrizionali.</p>
+      <div className="md3-card p-6 sm:p-8 border border-sage-200 dark:border-sage-800">
+        <h1 className="text-2xl font-black text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Database Alimenti</h1>
+        <p className="text-sage-600 dark:text-sage-400">Gestisci il tuo database personalizzato di alimenti con le relative proprietà nutrizionali.</p>
       </div>
 
       {/* Caricamento Excel */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
+      <div className="md3-card p-6 sm:p-8 border border-sage-200 dark:border-sage-800">
         <div className="flex items-center space-x-3 mb-6">
-          <Upload className="w-6 h-6 text-primary-600" />
-          <h2 className="text-xl font-bold text-sage-900">Importa da Excel</h2>
+          <Upload className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+          <h2 className="text-xl font-bold text-sage-900 dark:text-sage-50 mb-0">Importa da Excel</h2>
         </div>
-        
-        <p className="text-sage-700 mb-4">Carica un file Excel con il tuo database di alimenti.</p>
-        <p className="text-sm text-sage-600 mb-4">Il file deve contenere le colonne: name/nome, calories/energia, carbs/carboidrati, proteins/proteine, fats/lipidi.</p>
-        
+
+        <p className="text-sage-700 dark:text-sage-300 mb-2">Carica un file Excel con il tuo database di alimenti.</p>
+        <p className="text-sm text-sage-600 dark:text-sage-400 mb-4">Il file deve contenere le colonne: name/nome, calories/energia, carbs/carboidrati, proteins/proteine, fats/lipidi. Valori riferiti a 100 g di alimento.</p>
+
         <div className="flex items-center space-x-2">
           <input
             type="file"
             accept=".xlsx, .xls"
             onChange={handleFileUpload}
-            className="block w-full text-sm text-sage-500
+            className="block w-full text-sm text-sage-500 dark:text-sage-400
               file:mr-4 file:py-2 file:px-4
-              file:rounded-md file:border-0
-              file:text-sm file:font-medium
+              file:rounded-full file:border-0
+              file:text-sm file:font-bold
               file:bg-primary-50 file:text-primary-700
-              hover:file:bg-primary-100"
+              dark:file:bg-primary-900/30 dark:file:text-primary-300
+              hover:file:bg-primary-100 dark:hover:file:bg-primary-900/50 file:cursor-pointer"
           />
         </div>
-        
+
         {isExcelLoaded && (
-          <div className="mt-3 text-sm text-green-600 flex items-center">
+          <div className="mt-3 text-sm text-green-600 dark:text-green-400 flex items-center">
             <CheckCircle className="w-5 h-5 mr-2" />
             <span>Database caricato con successo! ({foods.length} alimenti)</span>
           </div>
@@ -342,7 +343,7 @@ export const Foods: React.FC = () => {
       </div>
 
       {/* Filtri e ricerca */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/20">
+      <div className="md3-card p-4 sm:p-6 border border-sage-200 dark:border-sage-800">
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1">
             <input
@@ -350,14 +351,14 @@ export const Foods: React.FC = () => {
               placeholder="Cerca alimenti..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 sm:px-4 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm sm:text-base"
+              className="md3-input w-full text-sm sm:text-base"
             />
           </div>
           <div className="w-full sm:w-auto">
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value as any)}
-              className="w-full px-3 sm:px-4 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm sm:text-base"
+              className="md3-input w-full text-sm sm:text-base"
             >
               <option value="all">Tutte le categorie</option>
               <option value="CRB">Carboidrati</option>
@@ -369,13 +370,13 @@ export const Foods: React.FC = () => {
       </div>
 
       {/* Lista alimenti */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
-        <div className="p-6 border-b border-sage-200">
+      <div className="md3-card border border-sage-200 dark:border-sage-800 overflow-hidden">
+        <div className="p-6 border-b border-sage-200 dark:border-sage-800">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-sage-900">Alimenti ({filteredFoods.length})</h2>
+            <h2 className="text-xl font-bold text-sage-900 dark:text-sage-50 mb-0">Alimenti ({filteredFoods.length})</h2>
             <button
               onClick={() => setIsAddingNew(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+              className="md3-button-primary flex items-center space-x-2"
             >
               <Plus className="w-4 h-4" />
               <span>Aggiungi Alimento</span>
@@ -385,25 +386,25 @@ export const Foods: React.FC = () => {
 
         {/* Form per nuovo alimento */}
         {isAddingNew && (
-          <div className="p-6 border-b border-sage-200 bg-sage-50">
-            <h3 className="text-lg font-semibold text-sage-900 mb-4">Nuovo Alimento</h3>
+          <div className="p-6 border-b border-sage-200 dark:border-sage-800 bg-sage-50 dark:bg-surface-container-dark/50">
+            <h3 className="text-lg font-semibold text-sage-900 dark:text-sage-50 mb-4">Nuovo Alimento</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
               <div className="sm:col-span-2 lg:col-span-2">
-                <label className="block text-sm font-medium text-sage-700 mb-1">Nome</label>
+                <label className="block text-sm font-medium text-sage-700 dark:text-sage-300 mb-1">Nome</label>
                 <input
                   type="text"
                   value={newFood.name}
                   onChange={(e) => setNewFood(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="md3-input w-full py-2"
                   placeholder="Nome alimento"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-sage-700 mb-1">Unità</label>
+                <label className="block text-sm font-medium text-sage-700 dark:text-sage-300 mb-1">Unità</label>
                 <select
                   value={newFood.unit}
                   onChange={(e) => setNewFood(prev => ({ ...prev, unit: e.target.value }))}
-                  className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="md3-input w-full py-2"
                 >
                   <option value="g">Grammi (g)</option>
                   <option value="ml">Millilitri (ml)</option>
@@ -411,45 +412,45 @@ export const Foods: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-sage-700 mb-1">Energia (kcal/100 o u)</label>
+                <label className="block text-sm font-medium text-sage-700 dark:text-sage-300 mb-1">Energia (kcal/100 o u)</label>
                 <input
                   type="number"
                   value={newFood.calories}
                   onChange={(e) => setNewFood(prev => ({ ...prev, calories: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="md3-input w-full py-2"
                   min="0"
                   step="0.1"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-sage-700 mb-1">Carboidrati (g/100 o u)</label>
+                <label className="block text-sm font-medium text-sage-700 dark:text-sage-300 mb-1">Carboidrati (g/100 o u)</label>
                 <input
                   type="number"
                   value={newFood.carbs}
                   onChange={(e) => setNewFood(prev => ({ ...prev, carbs: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="md3-input w-full py-2"
                   min="0"
                   step="0.1"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-sage-700 mb-1">Proteine (g/100 o u)</label>
+                <label className="block text-sm font-medium text-sage-700 dark:text-sage-300 mb-1">Proteine (g/100 o u)</label>
                 <input
                   type="number"
                   value={newFood.proteins}
                   onChange={(e) => setNewFood(prev => ({ ...prev, proteins: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="md3-input w-full py-2"
                   min="0"
                   step="0.1"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-sage-700 mb-1">Lipidi (g/100 o u)</label>
+                <label className="block text-sm font-medium text-sage-700 dark:text-sage-300 mb-1">Lipidi (g/100 o u)</label>
                 <input
                   type="number"
                   value={newFood.fats}
                   onChange={(e) => setNewFood(prev => ({ ...prev, fats: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="md3-input w-full py-2"
                   min="0"
                   step="0.1"
                 />
@@ -644,7 +645,7 @@ export const Foods: React.FC = () => {
         {/* Layout a card per mobile e tablet */}
         <div className="lg:hidden space-y-4 p-4">
           {filteredFoods.map((food) => (
-            <div key={food.id} className="bg-white rounded-lg border border-sage-200 p-4 shadow-sm">
+            <div key={food.id} className="bg-white dark:bg-surface-container-dark rounded-md3-medium border border-sage-200 dark:border-sage-800 p-4 shadow-sm">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex-1">
                   {editingId === food.id ? (
@@ -667,7 +668,7 @@ export const Foods: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <h3 className="font-medium text-sage-900 text-lg">{food.name}</h3>
+                      <h3 className="font-medium text-sage-900 dark:text-sage-50 text-lg">{food.name}</h3>
                       <div className="flex items-center space-x-2 mt-1">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCategoryColor(food.category)}`}>
                           {getCategoryLabel(food.category)}
@@ -718,8 +719,8 @@ export const Foods: React.FC = () => {
               </div>
               
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-sage-50 rounded-lg p-3">
-                  <p className="text-xs font-medium text-sage-600 mb-1">Energia</p>
+                <div className="bg-sage-50 dark:bg-surface-dark rounded-md3-small p-3">
+                  <p className="text-xs font-medium text-sage-600 dark:text-sage-400 mb-1">Energia</p>
                   {editingId === food.id ? (
                     <input
                       type="number"
@@ -730,12 +731,12 @@ export const Foods: React.FC = () => {
                       step="0.1"
                     />
                   ) : (
-                    <p className="text-sm font-semibold text-sage-900">{food.calories.toFixed(1)} kcal</p>
+                    <p className="text-sm font-semibold text-sage-900 dark:text-sage-50">{food.calories.toFixed(1)} kcal</p>
                   )}
                 </div>
                 
-                <div className="bg-sage-50 rounded-lg p-3">
-                  <p className="text-xs font-medium text-sage-600 mb-1">Proteine</p>
+                <div className="bg-sage-50 dark:bg-surface-dark rounded-md3-small p-3">
+                  <p className="text-xs font-medium text-sage-600 dark:text-sage-400 mb-1">Proteine</p>
                   {editingId === food.id ? (
                     <input
                       type="number"
@@ -746,12 +747,12 @@ export const Foods: React.FC = () => {
                       step="0.1"
                     />
                   ) : (
-                    <p className="text-sm font-semibold text-sage-900">{food.proteins.toFixed(1)}g</p>
+                    <p className="text-sm font-semibold text-sage-900 dark:text-sage-50">{food.proteins.toFixed(1)}g</p>
                   )}
                 </div>
                 
-                <div className="bg-sage-50 rounded-lg p-3">
-                  <p className="text-xs font-medium text-sage-600 mb-1">Carboidrati</p>
+                <div className="bg-sage-50 dark:bg-surface-dark rounded-md3-small p-3">
+                  <p className="text-xs font-medium text-sage-600 dark:text-sage-400 mb-1">Carboidrati</p>
                   {editingId === food.id ? (
                     <input
                       type="number"
@@ -762,12 +763,12 @@ export const Foods: React.FC = () => {
                       step="0.1"
                     />
                   ) : (
-                    <p className="text-sm font-semibold text-sage-900">{food.carbs.toFixed(1)}g</p>
+                    <p className="text-sm font-semibold text-sage-900 dark:text-sage-50">{food.carbs.toFixed(1)}g</p>
                   )}
                 </div>
                 
-                <div className="bg-sage-50 rounded-lg p-3">
-                  <p className="text-xs font-medium text-sage-600 mb-1">Lipidi</p>
+                <div className="bg-sage-50 dark:bg-surface-dark rounded-md3-small p-3">
+                  <p className="text-xs font-medium text-sage-600 dark:text-sage-400 mb-1">Lipidi</p>
                   {editingId === food.id ? (
                     <input
                       type="number"
@@ -778,7 +779,7 @@ export const Foods: React.FC = () => {
                       step="0.1"
                     />
                   ) : (
-                    <p className="text-sm font-semibold text-sage-900">{food.fats.toFixed(1)}g</p>
+                    <p className="text-sm font-semibold text-sage-900 dark:text-sage-50">{food.fats.toFixed(1)}g</p>
                   )}
                 </div>
               </div>

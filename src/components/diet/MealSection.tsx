@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
-import { FoodAutocomplete } from './FoodAutocomplete';
+import { Plus, Trash2, ChevronDown, ChevronUp, Scale, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { FoodAutocomplete, FoodOption } from './FoodAutocomplete';
 import { PortionOptimizer } from './PortionOptimizer';
-import { FoodMacroProfile } from '../../utils/portionOptimizer';
+import { FoodMacroProfile, OptimizationResult } from '../../utils/portionOptimizer';
+import { evaluateMealBalance } from '../../utils/mealBalance';
 
 interface MealItem {
   id: string;
@@ -23,12 +24,39 @@ interface MealSectionProps {
   title: string;
   mealData: MealItem[];
   onUpdate: (data: MealItem[]) => void;
-  dayName: string; // Aggiunto per l'ottimizzatore
+  dayName: string;
 }
 
-export const MealSection: React.FC<MealSectionProps> = ({ 
-  title, 
-  mealData, 
+/** Ricava i valori per 100g di un item, anche per dati salvati prima dell'introduzione dei campi base*. */
+const getBaseValues = (item: MealItem) => {
+  const g = item.grams || 100;
+  return {
+    calories: item.baseCalories ?? (item.calories / g) * 100,
+    proteins: item.baseProteins ?? (item.proteins / g) * 100,
+    carbs: item.baseCarbs ?? (item.carbs / g) * 100,
+    fats: item.baseFats ?? (item.fats / g) * 100,
+  };
+};
+
+const scaleItem = (item: MealItem, grams: number): MealItem => {
+  const base = getBaseValues(item);
+  return {
+    ...item,
+    grams,
+    calories: (base.calories * grams) / 100,
+    proteins: (base.proteins * grams) / 100,
+    carbs: (base.carbs * grams) / 100,
+    fats: (base.fats * grams) / 100,
+    baseCalories: base.calories,
+    baseProteins: base.proteins,
+    baseCarbs: base.carbs,
+    baseFats: base.fats,
+  };
+};
+
+export const MealSection: React.FC<MealSectionProps> = ({
+  title,
+  mealData,
   onUpdate,
   dayName
 }) => {
@@ -38,7 +66,7 @@ export const MealSection: React.FC<MealSectionProps> = ({
     const newItem: MealItem = {
       id: Date.now().toString(),
       food: '',
-      grams: 100, // Default 100g
+      grams: 100,
       calories: 0,
       proteins: 0,
       carbs: 0,
@@ -49,14 +77,45 @@ export const MealSection: React.FC<MealSectionProps> = ({
   };
 
   const updateItem = (id: string, updates: Partial<MealItem>) => {
-    const updatedData = mealData.map(item => 
-      item.id === id ? { ...item, ...updates } : item
-    );
-    onUpdate(updatedData);
+    onUpdate(mealData.map(item => (item.id === id ? { ...item, ...updates } : item)));
   };
 
   const removeItem = (id: string) => {
     onUpdate(mealData.filter(item => item.id !== id));
+  };
+
+  const handleFoodSelect = (item: MealItem, food: FoodOption | null) => {
+    if (!food) {
+      updateItem(item.id, {
+        food: '', calories: 0, proteins: 0, carbs: 0, fats: 0, category: '',
+        baseCalories: 0, baseProteins: 0, baseCarbs: 0, baseFats: 0
+      });
+      return;
+    }
+    const grams = item.grams || 100;
+    updateItem(item.id, {
+      food: food.name,
+      category: food.category,
+      grams,
+      calories: (food.calories * grams) / 100,
+      proteins: (food.proteins * grams) / 100,
+      carbs: (food.carbs * grams) / 100,
+      fats: (food.fats * grams) / 100,
+      baseCalories: food.calories,
+      baseProteins: food.proteins,
+      baseCarbs: food.carbs,
+      baseFats: food.fats,
+    });
+  };
+
+  const handleGramsChange = (item: MealItem, rawValue: string) => {
+    const grams = parseFloat(rawValue) || 0;
+    if (item.food) {
+      const scaled = scaleItem(item, grams);
+      updateItem(item.id, scaled);
+    } else {
+      updateItem(item.id, { grams });
+    }
   };
 
   const calculateTotals = () => {
@@ -72,48 +131,49 @@ export const MealSection: React.FC<MealSectionProps> = ({
     const { portions } = optimizationResult;
     const updatedData = mealData.map(item => {
       const optimizedPortion = portions.find(p => p.foodId === item.id);
-      if (optimizedPortion) {
-        const grams = optimizedPortion.grams;
-        const baseCalories = item.baseCalories || (item.calories / (item.grams || 1)) * 100;
-        const baseProteins = item.baseProteins || (item.proteins / (item.grams || 1)) * 100;
-        const baseCarbs = item.baseCarbs || (item.carbs / (item.grams || 1)) * 100;
-        const baseFats = item.baseFats || (item.fats / (item.grams || 1)) * 100;
-
-        return {
-          ...item,
-          grams,
-          calories: (baseCalories * grams) / 100,
-          proteins: (baseProteins * grams) / 100,
-          carbs: (baseCarbs * grams) / 100,
-          fats: (baseFats * grams) / 100
-        };
-      }
-      return item;
+      return optimizedPortion ? scaleItem(item, optimizedPortion.grams) : item;
     });
     onUpdate(updatedData);
   };
 
   const selectedFoodsForOptimizer: FoodMacroProfile[] = mealData
     .filter(item => item.food)
-    .map(item => ({
-      id: item.id,
-      name: item.food,
-      caloriesPer100g: item.baseCalories || (item.calories / (item.grams || 1)) * 100,
-      carbsPer100g: item.baseCarbs || (item.carbs / (item.grams || 1)) * 100,
-      proteinsPer100g: item.baseProteins || (item.proteins / (item.grams || 1)) * 100,
-      fatsPer100g: item.baseFats || (item.fats / (item.grams || 1)) * 100
-    }));
+    .map(item => {
+      const base = getBaseValues(item);
+      return {
+        id: item.id,
+        name: item.food,
+        category: item.category,
+        caloriesPer100g: base.calories,
+        carbsPer100g: base.carbs,
+        proteinsPer100g: base.proteins,
+        fatsPer100g: base.fats,
+      };
+    });
 
   const totals = calculateTotals();
+  const balance = evaluateMealBalance(totals);
 
   return (
     <div className="md3-card border border-sage-200 dark:border-sage-800 shadow-none">
-      <div 
+      <div
         className="p-6 cursor-pointer hover:bg-sage-50/50 dark:hover:bg-surface-container-dark/50 transition-colors duration-200 border-b border-sage-100 dark:border-sage-800"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-black text-sage-900 dark:text-sage-50 tracking-tight">{title}</h3>
+          <div className="flex items-center space-x-3">
+            <h3 className="text-xl font-black text-sage-900 dark:text-sage-50 tracking-tight mb-0">{title}</h3>
+            {!balance.isEmpty && (
+              <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                balance.isBalanced
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                  : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+              }`}>
+                {balance.isBalanced ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                <span>{balance.isBalanced ? 'Equilibrato' : 'Da bilanciare'}</span>
+              </span>
+            )}
+          </div>
           <div className="flex items-center space-x-6">
             <div className="text-right hidden sm:block">
               <p className="text-[10px] font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 mb-0.5">Totale Pasto</p>
@@ -139,9 +199,9 @@ export const MealSection: React.FC<MealSectionProps> = ({
                 <tr>
                   <th className="md3-table-th w-1/3">Alimento</th>
                   <th className="md3-table-th text-center">Peso (g)</th>
-                  <th className="md3-table-th text-center">Energia</th>
+                  <th className="md3-table-th text-center">Energia (kcal)</th>
                   <th className="md3-table-th text-center">Proteine</th>
-                  <th className="md3-table-th text-center">Carbo</th>
+                  <th className="md3-table-th text-center">Carboidrati</th>
                   <th className="md3-table-th text-center">Lipidi</th>
                   <th className="md3-table-th text-right"></th>
                 </tr>
@@ -152,41 +212,17 @@ export const MealSection: React.FC<MealSectionProps> = ({
                     <td className="md3-table-td">
                       <FoodAutocomplete
                         value={item.food}
-                        onChange={(food, nutritionalData) => {
-                          const grams = item.grams || 100;
-                          updateItem(item.id, {
-                            food,
-                            ...nutritionalData,
-                            grams,
-                            baseCalories: (nutritionalData.calories / grams) * 100,
-                            baseProteins: (nutritionalData.proteins / grams) * 100,
-                            baseCarbs: (nutritionalData.carbs / grams) * 100,
-                            baseFats: (nutritionalData.fats / grams) * 100,
-                          });
-                        }}
-                        grams={item.grams}
+                        onSelect={(food) => handleFoodSelect(item, food)}
                       />
                     </td>
                     <td className="md3-table-td text-center">
                       <input
                         type="number"
                         value={item.grams || ''}
-                        onChange={(e) => {
-                          const grams = parseFloat(e.target.value) || 0;
-                          if (item.food && item.baseCalories) {
-                            updateItem(item.id, {
-                              grams,
-                              calories: (item.baseCalories * grams) / 100,
-                              proteins: (item.baseProteins! * grams) / 100,
-                              carbs: (item.baseCarbs! * grams) / 100,
-                              fats: (item.baseFats! * grams) / 100
-                            });
-                          } else {
-                            updateItem(item.id, { grams });
-                          }
-                        }}
+                        onChange={(e) => handleGramsChange(item, e.target.value)}
                         className="md3-input py-1.5 px-3 text-center w-24 font-bold"
                         placeholder="0"
+                        min="0"
                       />
                     </td>
                     <td className="md3-table-td text-center font-bold text-sage-900 dark:text-sage-50">{Math.round(item.calories || 0)}</td>
@@ -197,6 +233,7 @@ export const MealSection: React.FC<MealSectionProps> = ({
                       <button
                         onClick={() => removeItem(item.id)}
                         className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                        title="Rimuovi alimento"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -206,31 +243,19 @@ export const MealSection: React.FC<MealSectionProps> = ({
               </tbody>
             </table>
           </div>
-          
+
           {/* Layout Mobile */}
           <div className="lg:hidden space-y-4 mb-6">
             {mealData.map((item) => (
               <div key={item.id} className="bg-sage-50/50 dark:bg-surface-container-dark/50 rounded-md3-medium p-4 border border-sage-100 dark:border-sage-800">
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-[10px] font-black uppercase tracking-widest text-sage-500">Dettaglio Alimento</span>
-                  <button onClick={() => removeItem(item.id)} className="text-red-500 p-2"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => removeItem(item.id)} className="text-red-500 p-2" title="Rimuovi alimento"><Trash2 className="w-4 h-4" /></button>
                 </div>
                 <div className="space-y-4">
                   <FoodAutocomplete
                     value={item.food}
-                    onChange={(food, nutritionalData) => {
-                      const grams = item.grams || 100;
-                      updateItem(item.id, {
-                        food,
-                        ...nutritionalData,
-                        grams,
-                        baseCalories: (nutritionalData.calories / grams) * 100,
-                        baseProteins: (nutritionalData.proteins / grams) * 100,
-                        baseCarbs: (nutritionalData.carbs / grams) * 100,
-                        baseFats: (nutritionalData.fats / grams) * 100,
-                      });
-                    }}
-                    grams={item.grams}
+                    onSelect={(food) => handleFoodSelect(item, food)}
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
@@ -238,21 +263,9 @@ export const MealSection: React.FC<MealSectionProps> = ({
                       <input
                         type="number"
                         value={item.grams || ''}
-                        onChange={(e) => {
-                          const grams = parseFloat(e.target.value) || 0;
-                          if (item.food && item.baseCalories) {
-                            updateItem(item.id, {
-                              grams,
-                              calories: (item.baseCalories * grams) / 100,
-                              proteins: (item.baseProteins! * grams) / 100,
-                              carbs: (item.baseCarbs! * grams) / 100,
-                              fats: (item.baseFats! * grams) / 100
-                            });
-                          } else {
-                            updateItem(item.id, { grams });
-                          }
-                        }}
+                        onChange={(e) => handleGramsChange(item, e.target.value)}
                         className="md3-input w-full py-2 font-bold"
+                        min="0"
                       />
                     </div>
                     <div className="space-y-1">
@@ -280,26 +293,51 @@ export const MealSection: React.FC<MealSectionProps> = ({
                 <p className="text-[10px] font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-1">Calorie</p>
                 <p className="text-xl font-black text-sage-900 dark:text-sage-50">{Math.round(totals.calories)} <span className="text-xs">kcal</span></p>
               </div>
-              <div className="bg-accent-50 dark:bg-accent-900/10 p-4 rounded-md3-small border border-accent-100 dark:border-accent-800/30">
-                <p className="text-[10px] font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-1">Proteine</p>
-                <p className="text-xl font-black text-sage-900 dark:text-sage-50">{totals.proteins.toFixed(1)} <span className="text-xs">g</span></p>
-                <p className="text-[10px] font-bold text-accent-600">{((totals.proteins * 4) / totals.calories * 100).toFixed(0)}%</p>
-              </div>
-              <div className="bg-primary-50 dark:bg-primary-900/10 p-4 rounded-md3-small border border-primary-100 dark:border-primary-800/30">
-                <p className="text-[10px] font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-1">Carbo</p>
-                <p className="text-xl font-black text-sage-900 dark:text-sage-50">{totals.carbs.toFixed(1)} <span className="text-xs">g</span></p>
-                <p className="text-[10px] font-bold text-primary-600">{((totals.carbs * 4) / totals.calories * 100).toFixed(0)}%</p>
-              </div>
-              <div className="bg-accent-50 dark:bg-accent-900/10 p-4 rounded-md3-small border border-accent-100 dark:border-accent-800/30">
-                <p className="text-[10px] font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-1">Lipidi</p>
-                <p className="text-xl font-black text-sage-900 dark:text-sage-50">{totals.fats.toFixed(1)} <span className="text-xs">g</span></p>
-                <p className="text-[10px] font-bold text-accent-600">{((totals.fats * 9) / totals.calories * 100).toFixed(0)}%</p>
-              </div>
+              {balance.evaluations.map(ev => (
+                <div key={ev.macro} className={`p-4 rounded-md3-small border ${
+                  ev.status === 'ok'
+                    ? 'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-800/30'
+                    : 'bg-orange-50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-800/30'
+                }`}>
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${
+                    ev.status === 'ok' ? 'text-green-700 dark:text-green-300' : 'text-orange-700 dark:text-orange-300'
+                  }`}>
+                    {ev.macro === 'carbs' ? 'Carboidrati' : ev.macro === 'proteins' ? 'Proteine' : 'Lipidi'}
+                  </p>
+                  <p className="text-xl font-black text-sage-900 dark:text-sage-50">
+                    {(ev.macro === 'carbs' ? totals.carbs : ev.macro === 'proteins' ? totals.proteins : totals.fats).toFixed(1)} <span className="text-xs">g</span>
+                  </p>
+                  <p className={`text-[10px] font-bold ${ev.status === 'ok' ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                    {ev.percent.toFixed(0)}% (CREA: {ev.range.min}–{ev.range.max}%)
+                  </p>
+                </div>
+              ))}
             </div>
           )}
 
-          <PortionOptimizer 
-            selectedFoods={selectedFoodsForOptimizer} 
+          {/* Pannello equilibrio CREA */}
+          {!balance.isEmpty && !balance.isBalanced && (
+            <div className="mb-8 p-5 bg-orange-50 dark:bg-orange-900/10 rounded-md3-medium border border-orange-200 dark:border-orange-800/30">
+              <div className="flex items-center space-x-2 mb-3">
+                <Scale className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                <span className="font-bold text-orange-900 dark:text-orange-100">Come rendere questo pasto equilibrato</span>
+              </div>
+              <ul className="space-y-2">
+                {balance.suggestions.map((s, i) => (
+                  <li key={i} className="text-sm text-orange-800 dark:text-orange-200 flex items-start space-x-2">
+                    <span className="mt-1.5 w-1.5 h-1.5 bg-orange-400 rounded-full flex-shrink-0"></span>
+                    <span>{s}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-[10px] text-orange-600/70 dark:text-orange-400/70 uppercase tracking-widest font-bold">
+                Riferimento: Linee guida CREA per una sana alimentazione
+              </p>
+            </div>
+          )}
+
+          <PortionOptimizer
+            selectedFoods={selectedFoodsForOptimizer}
             onApply={handleApplyOptimization}
             dayName={dayName}
             mealType={title}

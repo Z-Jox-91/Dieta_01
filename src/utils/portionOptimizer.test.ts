@@ -1,12 +1,11 @@
+import { describe, it, expect } from 'vitest';
 import { optimizePortions, FoodMacroProfile, MacroTarget } from './portionOptimizer';
 
 /**
  * Test unitari per l'ottimizzatore di porzioni MacroMind.
  * Verifica che l'algoritmo trovi soluzioni ammissibili e performanti.
  */
-export function runOptimizerTests() {
-  console.group('🧪 MacroMind Optimizer Tests');
-  
+describe('portionOptimizer', () => {
   const testFoods: FoodMacroProfile[] = [
     { id: '1', name: 'Pasta', caloriesPer100g: 350, carbsPer100g: 70, proteinsPer100g: 12, fatsPer100g: 2 },
     { id: '2', name: 'Pollo', caloriesPer100g: 110, carbsPer100g: 0, proteinsPer100g: 23, fatsPer100g: 2 },
@@ -20,33 +19,41 @@ export function runOptimizerTests() {
     fatsPercent: 20
   };
 
-  // Test 1: Performance
-  const start = performance.now();
-  const results = optimizePortions(testFoods, target);
-  const end = performance.now();
-  const duration = end - start;
-
-  console.log(`Test 1 (Performance): ${duration.toFixed(2)}ms ${duration < 500 ? '✅' : '❌'}`);
-
-  // Test 2: Validità (Somma calorie vicina al target)
-  let totalKcal = 0;
-  results.forEach(res => {
-    const food = testFoods.find(f => f.id === res.foodId)!;
-    totalKcal += (food.caloriesPer100g * res.grams) / 100;
+  it('trova una soluzione in meno di 500ms', () => {
+    const start = performance.now();
+    optimizePortions(testFoods, target);
+    const duration = performance.now() - start;
+    expect(duration).toBeLessThan(500);
   });
-  
-  const diff = Math.abs(totalKcal - target.totalCalories);
-  console.log(`Test 2 (Precisione Kcal): Diff ${diff.toFixed(1)} kcal ${diff < 50 ? '✅' : '❌'}`);
 
-  // Test 3: Non-negatività
-  const allPositive = results.every(r => r.grams >= 0);
-  console.log(`Test 3 (Non-negatività): ${allPositive ? '✅' : '❌'}`);
+  it('si avvicina al target calorico (±50 kcal)', () => {
+    const results = optimizePortions(testFoods, target);
+    let totalKcal = 0;
+    results.portions.forEach(res => {
+      const food = testFoods.find(f => f.id === res.foodId)!;
+      totalKcal += (food.caloriesPer100g * res.grams) / 100;
+    });
+    expect(Math.abs(totalKcal - target.totalCalories)).toBeLessThan(50);
+  });
 
-  console.groupEnd();
-  
-  return {
-    performance: duration,
-    precision: diff,
-    valid: allPositive && diff < 50 && duration < 500
-  };
-}
+  it('restituisce solo grammature non negative', () => {
+    const results = optimizePortions(testFoods, target);
+    expect(results.portions.every(r => r.grams >= 0)).toBe(true);
+  });
+
+  it('segnala cosa aggiungere quando manca un gruppo alimentare', () => {
+    const onlyCarbs: FoodMacroProfile[] = [
+      { id: '1', name: 'Riso', caloriesPer100g: 360, carbsPer100g: 80, proteinsPer100g: 0, fatsPer100g: 0 },
+    ];
+    const result = optimizePortions(onlyCarbs, target);
+    const text = (result.suggestions || []).join(' ');
+    expect(text).toContain('fonte proteica');
+    expect(text).toContain('fonte di grassi');
+  });
+
+  it('gestisce una lista vuota senza errori', () => {
+    const result = optimizePortions([], target);
+    expect(result.isFeasible).toBe(false);
+    expect(result.portions).toHaveLength(0);
+  });
+});

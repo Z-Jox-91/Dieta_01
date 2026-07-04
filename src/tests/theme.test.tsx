@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Header } from '../components/Header';
-import React from 'react';
 
 // Mock per matchMedia (necessario in JSDOM)
 Object.defineProperty(window, 'matchMedia', {
@@ -24,7 +23,7 @@ describe('Theme Regression Tests', () => {
   });
 
   it('should apply the dark class to html element when toggled', () => {
-    render(<Header user={{ name: 'Test', email: 'test@test.com' }} />);
+    render(<Header user={{ name: 'Test', email: 'test@test.com' }} onLogout={() => {}} />);
     const toggleButton = screen.getByTitle(/Attiva Tema Scuro|Attiva Tema Chiaro/i);
     
     // Inizialmente è in modalità Light (basato sul mock di matchMedia)

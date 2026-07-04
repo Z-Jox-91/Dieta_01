@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, GraduationCap, ChevronDown, ChevronUp } from 'lucide-react';
 import { DaySelector } from './diet/DaySelector';
 import { MealSection } from './diet/MealSection';
 import { DayStats } from './diet/DayStats';
 import { db, auth } from '../firebase';
-import { collection, doc, getDoc, setDoc, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { CREA_RANGES, FOOD_EXAMPLES } from '../utils/mealBalance';
 
 // Definizione delle interfacce per i dati
 interface MealItem {
@@ -36,6 +37,7 @@ export const Diet: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState(0);
   const [currentWeek, setCurrentWeek] = useState(0);
   const [mealsData, setMealsData] = useState<MealsDataStore>({});
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     const loadMealsData = async () => {
@@ -155,12 +157,6 @@ export const Diet: React.FC = () => {
         [dayKey]: newData
       };
       saveMealsData(updated);
-      
-      // Assicurati che l'eliminazione dei pasti venga sincronizzata con Firestore
-      if (auth.currentUser) {
-        const mealsDoc = doc(db, `users/${auth.currentUser.uid}/data/meals`);
-        setDoc(mealsDoc, updated, { merge: true });
-      }
     } catch (error) {
       console.error('Errore nell\'aggiornamento dei dati del giorno:', error);
     }
@@ -220,6 +216,61 @@ export const Diet: React.FC = () => {
           selectedDay={selectedDay}
           onDaySelect={setSelectedDay}
         />
+      </div>
+
+      {/* Guida per principianti: come si compone un pasto equilibrato */}
+      <div className="md3-card border border-primary-100 dark:border-primary-900/30">
+        <button
+          onClick={() => setShowGuide(!showGuide)}
+          className="w-full p-5 flex items-center justify-between text-left"
+        >
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-md3-small flex items-center justify-center">
+              <GraduationCap className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sage-900 dark:text-sage-50 mb-0">Non sai come comporre un pasto equilibrato?</h3>
+              <p className="text-xs text-sage-500 dark:text-sage-400">Guida rapida basata sulle Linee guida CREA per una sana alimentazione</p>
+            </div>
+          </div>
+          {showGuide ? <ChevronUp className="w-5 h-5 text-sage-400" /> : <ChevronDown className="w-5 h-5 text-sage-400" />}
+        </button>
+
+        {showGuide && (
+          <div className="px-5 pb-6 space-y-4">
+            <p className="text-sm text-sage-700 dark:text-sage-300 leading-relaxed">
+              Un pasto equilibrato distribuisce l'energia tra i tre macronutrienti. In ogni pasto cerca di
+              includere <strong>una fonte per ciascun gruppo</strong>; il sito calcolerà le percentuali e ti
+              segnalerà cosa manca. Puoi anche usare l'<strong>Ottimizzatore</strong> dentro ogni pasto per
+              ottenere automaticamente le quantità in grammi.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-primary-50 dark:bg-primary-900/10 p-4 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
+                <p className="text-xs font-black uppercase tracking-widest text-primary-700 dark:text-primary-300 mb-1">
+                  Carboidrati • {CREA_RANGES.carbs.min}–{CREA_RANGES.carbs.max}%
+                </p>
+                <p className="text-sm text-sage-700 dark:text-sage-300">{FOOD_EXAMPLES.carbs}</p>
+              </div>
+              <div className="bg-accent-50 dark:bg-accent-900/10 p-4 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
+                <p className="text-xs font-black uppercase tracking-widest text-accent-700 dark:text-accent-300 mb-1">
+                  Proteine • {CREA_RANGES.proteins.min}–{CREA_RANGES.proteins.max}%
+                </p>
+                <p className="text-sm text-sage-700 dark:text-sage-300">{FOOD_EXAMPLES.proteins}</p>
+              </div>
+              <div className="bg-sage-50 dark:bg-sage-900/20 p-4 rounded-md3-medium border border-sage-200 dark:border-sage-800">
+                <p className="text-xs font-black uppercase tracking-widest text-sage-700 dark:text-sage-300 mb-1">
+                  Grassi • {CREA_RANGES.fats.min}–{CREA_RANGES.fats.max}%
+                </p>
+                <p className="text-sm text-sage-700 dark:text-sage-300">{FOOD_EXAMPLES.fats}</p>
+              </div>
+            </div>
+            <p className="text-xs text-sage-500 dark:text-sage-400">
+              Ricorda inoltre: verdura e frutta in ogni pasto, preferisci cereali integrali, limita sale e zuccheri
+              aggiunti e bevi almeno 1,5–2 litri di acqua al giorno. Le percentuali indicate si riferiscono
+              all'energia del pasto (kcal), non al peso in grammi.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Day Stats */}

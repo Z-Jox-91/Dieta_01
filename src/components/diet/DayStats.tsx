@@ -73,34 +73,71 @@ export const DayStats: React.FC<DayStatsProps> = ({ dayData, selectedDay }) => {
 
   const { totalCalories, totalProteins } = calculateTotals();
 
+  const caloriePercent = calorieLimit ? Math.min(100, (totalCalories / calorieLimit) * 100) : null;
+  const proteinPercent = proteinGoal ? Math.min(100, (totalProteins / proteinGoal) * 100) : null;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="bg-gradient-to-br from-primary-50 to-primary-100 p-6 rounded-xl border border-primary-200">
+      <div className="md3-card p-6 border border-primary-100 dark:border-primary-800/30">
         <div className="flex items-center space-x-3 mb-2">
-          <Zap className="w-6 h-6 text-primary-600" />
-          <h3 className="text-lg font-semibold text-primary-900">Calorie Totali</h3>
+          <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-md3-small flex items-center justify-center">
+            <Zap className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+          </div>
+          <h3 className="text-lg font-bold text-sage-900 dark:text-sage-50 mb-0">Calorie Totali</h3>
         </div>
-        <div className="flex items-end space-x-2">
-          <p className="text-3xl font-bold text-primary-900">{Math.round(totalCalories)}</p>
+        <div className="flex items-end space-x-2 mt-3">
+          <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(totalCalories)}</p>
           {calorieLimit && (
-            <p className="text-lg text-primary-700 mb-1">/ {calorieLimit} kcal limite</p>
+            <p className="text-lg text-sage-500 dark:text-sage-400 mb-1">/ {calorieLimit} kcal</p>
           )}
         </div>
-        <p className="text-sm text-primary-700 mt-1">kcal giornaliere</p>
+        {caloriePercent !== null ? (
+          <div className="mt-3">
+            <div className="w-full bg-sage-100 dark:bg-sage-800 h-2 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${
+                  totalCalories > (calorieLimit || 0) ? 'bg-red-500' : 'bg-primary-500'
+                }`}
+                style={{ width: `${caloriePercent}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-sage-500 dark:text-sage-400 mt-1">
+              {totalCalories > (calorieLimit || 0)
+                ? `Limite giornaliero superato di ${Math.round(totalCalories - (calorieLimit || 0))} kcal`
+                : `${Math.round((calorieLimit || 0) - totalCalories)} kcal ancora disponibili`}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-sage-500 dark:text-sage-400 mt-1">kcal giornaliere • imposta un target nella scheda Calcoli</p>
+        )}
       </div>
 
-      <div className="bg-gradient-to-br from-accent-50 to-accent-100 p-6 rounded-xl border border-accent-200">
+      <div className="md3-card p-6 border border-accent-100 dark:border-accent-800/30">
         <div className="flex items-center space-x-3 mb-2">
-          <Target className="w-6 h-6 text-accent-600" />
-          <h3 className="text-lg font-semibold text-accent-900">Proteine Totali</h3>
+          <div className="w-10 h-10 bg-accent-100 dark:bg-accent-900/30 rounded-md3-small flex items-center justify-center">
+            <Target className="w-5 h-5 text-accent-600 dark:text-accent-400" />
+          </div>
+          <h3 className="text-lg font-bold text-sage-900 dark:text-sage-50 mb-0">Proteine Totali</h3>
         </div>
-        <div className="flex items-end space-x-2">
-          <p className="text-3xl font-bold text-accent-900">{totalProteins.toFixed(1)}</p>
+        <div className="flex items-end space-x-2 mt-3">
+          <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{totalProteins.toFixed(1)}</p>
           {proteinGoal && (
-            <p className="text-lg text-accent-700 mb-1">/ {proteinGoal.toFixed(1)}g obiettivo</p>
+            <p className="text-lg text-sage-500 dark:text-sage-400 mb-1">/ {proteinGoal.toFixed(1)} g</p>
           )}
         </div>
-        <p className="text-sm text-accent-700 mt-1">grammi giornalieri</p>
+        {proteinPercent !== null ? (
+          <div className="mt-3">
+            <div className="w-full bg-sage-100 dark:bg-sage-800 h-2 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-accent-500 rounded-full transition-all duration-700"
+                style={{ width: `${proteinPercent}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-sage-500 dark:text-sage-400 mt-1">{proteinPercent.toFixed(0)}% dell'obiettivo proteico</p>
+          </div>
+        ) : (
+          <p className="text-sm text-sage-500 dark:text-sage-400 mt-1">grammi giornalieri • calcola l'obiettivo nella scheda Calcoli</p>
+        )}
       </div>
     </div>
   );

@@ -7,9 +7,9 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [formData, setFormData] = useState({
-    name: 'Test User',
-    email: 'test@example.com',
-    password: 'test123456'
+    name: '',
+    email: '',
+    password: ''
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -18,22 +18,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    console.log('Form inviato con dati:', formData);
-    console.log('Stato isLoading prima del submit:', isLoading);
-    console.log('Evento form submit intercettato correttamente');
-    
+
     if (formData.name.trim() && formData.email.trim() && formData.password.trim()) {
-      console.log('Validazione superata, dati del form:', {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: '***' // Non loggare la password per sicurezza
-      });
       try {
         setIsLoading(true);
-        console.log('Tentativo di login in corso...');
-        console.log('Chiamata a onLogin con:', formData);
-        const loginResult = await onLogin(formData);
-        console.log('Login completato con successo, risultato:', loginResult);
+        await onLogin(formData);
       } catch (err: any) {
         // Gestione degli errori specifici di Firebase
         let errorMessage = 'Errore durante l\'accesso. Riprova più tardi.';
@@ -48,10 +37,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               errorMessage = 'Questo account è stato disabilitato.';
               break;
             case 'auth/wrong-password':
+            case 'auth/invalid-credential':
               errorMessage = 'Password non corretta.';
               break;
             case 'auth/email-already-in-use':
-              errorMessage = 'Questo indirizzo email è già in uso.';
+              errorMessage = 'Email già registrata: la password inserita non è corretta.';
               break;
             case 'auth/weak-password':
               errorMessage = 'La password deve contenere almeno 6 caratteri.';
@@ -63,16 +53,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }
         
         setError(errorMessage);
-        console.error('Errore di login:', err);
       } finally {
         setIsLoading(false);
       }
     } else {
-      console.log('Validazione fallita:', {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password.trim() ? '***' : 'vuoto'
-      });
       setError('Tutti i campi sono obbligatori.');
     }
   };
@@ -84,8 +68,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div className="w-20 h-20 bg-primary-600 dark:bg-primary-500 rounded-md3-medium mx-auto mb-6 flex items-center justify-center shadow-md3-3">
             <Lock className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-3xl font-black text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Bilanciamo AI</h2>
+          <h2 className="text-3xl font-black text-sage-900 dark:text-sage-50 mb-2 tracking-tight">MacroMind</h2>
           <p className="text-sage-600 dark:text-sage-400 font-medium">La tua nutrizione, semplificata dall'AI</p>
+          <p className="text-xs text-sage-500 dark:text-sage-500 mt-2">Se non hai un account verrà creato automaticamente al primo accesso.</p>
         </div>
 
         {error && (
@@ -161,7 +146,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <div className="mt-8 text-center">
           <p className="text-[10px] text-sage-400 uppercase font-black tracking-widest">
-            Powered by Google Firebase & Claude AI
+            Powered by Google Firebase & Gemini AI
           </p>
         </div>
       </div>

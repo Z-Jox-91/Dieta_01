@@ -8,22 +8,8 @@ export default {
         sans: ['Inter', 'Roboto', 'system-ui', 'sans-serif'],
       },
       colors: {
-        // MD3 Light/Dark Tones
+        // Palette primaria (verde) — scala unica 50-900
         primary: {
-          0: '#000000',
-          10: '#00210e',
-          20: '#00391c',
-          30: '#00522b',
-          40: '#006d3b',
-          50: '#00894c',
-          60: '#00a65d',
-          70: '#00c46f',
-          80: '#00e381',
-          90: '#3eff94',
-          95: '#baffc8',
-          99: '#f7ffee',
-          100: '#ffffff',
-          // Legacy mappings
           50: '#f0fdf4',
           100: '#dcfce7',
           200: '#bbf7d0',

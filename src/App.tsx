@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
-import { Diet } from './components/Diet';
-import { Foods } from './components/Foods';
-import { Recipes } from './components/Recipes';
 import { Login } from './components/Login';
 import { AIAssistant } from './components/AIAssistant';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -23,33 +20,23 @@ function App() {
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Test di connettività Firebase
-    console.log('=== TEST CONNETTIVITÀ FIREBASE ===');
-    console.log('Auth object:', auth);
-    console.log('DB object:', db);
-    console.log('Firebase config:', auth.app.options);
-    
     try {
       // Sottoscrizione allo stato di autenticazione
       const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
-      console.log('Stato autenticazione cambiato:', authUser ? 'Utente autenticato' : 'Utente non autenticato');
       if (authUser) {
         // L'utente è autenticato
-        console.log('UID utente:', authUser.uid);
         const userDocRef = doc(db, 'users', authUser.uid);
         try {
           const userDoc = await getDoc(userDocRef);
-          
+
           if (userDoc.exists()) {
             // Se il documento esiste, carica i dati dell'utente
-            console.log('Documento utente trovato:', userDoc.data());
             setUser({
               name: userDoc.data().name,
               email: authUser.email || ''
             });
           } else {
             // Se il documento non esiste, crea un nuovo documento utente
-            console.log('Documento utente non trovato, creazione in corso...');
             if (authUser.email) {
               const newUser = {
                 name: authUser.displayName || authUser.email.split('@')[0],
@@ -58,7 +45,6 @@ function App() {
               setUser(newUser);
               try {
                 await setDoc(userDocRef, newUser);
-                console.log('Nuovo documento utente creato');
               } catch (firestoreError: any) {
                 console.error('Errore durante la scrittura su Firestore:', firestoreError);
                 if (firestoreError.code === 'permission-denied') {
@@ -76,7 +62,6 @@ function App() {
         }
       } else {
         // L'utente non è autenticato
-        console.log('Nessun utente autenticato');
         setUser(null);
       }
       setLoading(false);
@@ -100,45 +85,29 @@ function App() {
       if (!userData.password) {
         throw new Error('Password richiesta');
       }
-      
-      console.log('=== INIZIO PROCESSO DI LOGIN ===');
-      console.log('Firebase Auth:', auth);
-      console.log('Firebase Auth currentUser:', auth.currentUser);
-      console.log('Dati utente ricevuti:', { name: userData.name, email: userData.email });
-      
-      // Test di connettività Firebase
-      console.log('Test connettività Firebase...');
-      console.log('Auth domain:', auth.app.options.authDomain);
-      console.log('Project ID:', auth.app.options.projectId);
-      
+
       // Crea o accedi all'account con email e password
       let userCredential;
       try {
         // Prova prima ad accedere
-        console.log('Tentativo di accesso con:', userData.email);
         userCredential = await signInWithEmailAndPassword(auth, userData.email, userData.password);
-        console.log('Accesso riuscito:', userCredential);
       } catch (error: any) {
-        console.error('Errore durante l\'accesso:', error.code, error.message);
         // Se l'accesso fallisce per motivi diversi da "utente non trovato", rilancia l'errore
-        if (error.code !== 'auth/user-not-found') {
+        // (auth/invalid-credential viene restituito quando l'email non esiste o la password è errata)
+        if (error.code !== 'auth/user-not-found' && error.code !== 'auth/invalid-credential') {
           throw error;
         }
-        // Altrimenti, crea un nuovo account
-        console.log('Creazione nuovo account per:', userData.email);
+        // Altrimenti, prova a creare un nuovo account
         userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
-        console.log('Account creato con successo:', userCredential);
       }
-      
+
       // Salva i dati utente in Firestore
       const userDocRef = doc(db, 'users', userCredential.user.uid);
-      console.log('Salvataggio dati utente in Firestore...');
       try {
         await setDoc(userDocRef, {
           name: userData.name,
           email: userData.email
         });
-        console.log('Dati utente salvati con successo');
       } catch (firestoreError: any) {
         console.error('Errore durante la scrittura su Firestore:', firestoreError);
         if (firestoreError.code === 'permission-denied') {
@@ -147,12 +116,8 @@ function App() {
           throw new Error(`Errore Firestore: ${firestoreError.message}`);
         }
       }
-      console.log('Firebase Auth currentUser dopo login:', auth.currentUser);
-      
       // L'utente verrà impostato dall'effetto onAuthStateChanged
-      console.log('=== FINE PROCESSO DI LOGIN - SUCCESSO ===');
     } catch (error: any) {
-      console.error('=== FINE PROCESSO DI LOGIN - ERRORE ===');
       console.error('Errore durante l\'autenticazione:', error);
       
       // Gestisci errori specifici di Firebase
@@ -199,7 +164,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50 dark:from-surface-dark dark:to-surface-container-dark flex items-center justify-center">
         <div className="animate-pulse-soft">
           <div className="w-16 h-16 bg-primary-500 rounded-full"></div>
         </div>
@@ -209,7 +174,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50 dark:from-surface-dark dark:to-surface-container-dark transition-colors duration-300">
         <Header user={user} onLogout={handleLogout} />
         
         <main className="container mx-auto px-4 py-8">

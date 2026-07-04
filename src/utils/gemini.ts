@@ -1,7 +1,10 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import { FoodItem } from '../components/Foods';
+import { MacroTarget } from './portionOptimizer';
 
-const MODEL_NAME = "gemini-1.5-pro"; // Usiamo 1.5 pro per migliori capacità di ragionamento
+// Nota: gemini-1.5-pro è stato ritirato da Google e restituisce errore 404.
+// Usiamo gemini-2.5-flash: veloce, economico e disponibile per tutte le chiavi API.
+const MODEL_NAME = "gemini-2.5-flash";
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -17,6 +20,40 @@ export interface RecipeSuggestion {
   nutritionalReasoning: string;
 }
 
+const getApiKey = (): string => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+    throw new Error(
+      "Chiave API Gemini non configurata. Apri il file .env nella cartella del progetto e imposta " +
+      "VITE_GEMINI_API_KEY con la chiave gratuita ottenibile su https://aistudio.google.com/app/apikey, " +
+      "poi riavvia il sito (npm run dev). Se il sito è pubblicato su Vercel, aggiungi la stessa variabile " +
+      "in Settings → Environment Variables e riesegui il deploy."
+    );
+  }
+  return apiKey;
+};
+
+const translateGeminiError = (error: any): Error => {
+  const msg: string = error?.message || '';
+
+  if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') || msg.includes('403')) {
+    return new Error("La chiave API di Gemini non è valida. Genera una nuova chiave su https://aistudio.google.com/app/apikey e aggiornala nel file .env.");
+  }
+  if (msg.includes('404') || msg.includes('not found')) {
+    return new Error(`Il modello AI "${MODEL_NAME}" non è disponibile per la tua chiave API. Verifica su https://aistudio.google.com che la chiave sia attiva.`);
+  }
+  if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota')) {
+    return new Error("Limite di richieste AI raggiunto. Attendi un minuto e riprova.");
+  }
+  if (msg.includes('SAFETY')) {
+    return new Error("La risposta è stata bloccata dai filtri di sicurezza. Riformula la richiesta.");
+  }
+  if (msg.includes('fetch') || msg.includes('Network') || msg.includes('ECONNREFUSED')) {
+    return new Error("Errore di rete durante la connessione all'AI. Verifica la connessione internet.");
+  }
+  return new Error(`Errore AI: ${msg || "Si è verificato un errore nella comunicazione con l'assistente."}`);
+};
+
 export const sendMessageToGemini = async (
   history: ChatMessage[],
   message: string,
@@ -26,33 +63,19 @@ export const sendMessageToGemini = async (
     dietGoals?: any;
   }
 ) => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  
-  // Logging Inizio Richiesta
-  console.log('[AI Assistant] Inizio richiesta Gemini:', {
-    timestamp: new Date().toISOString(),
-    messageLength: message.length,
-    historyLength: history.length,
-    contextFoodsCount: context.foods.length
-  });
-
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    const errorMsg = "Chiave API Gemini non configurata o non valida. Verifica il file .env";
-    console.error(`[AI Assistant] ❌ ERRORE CONFIGURAZIONE: ${errorMsg}`);
-    throw new Error(errorMsg);
-  }
-
+  const apiKey = getApiKey();
   const genAI = new GoogleGenerativeAI(apiKey);
-  
+
   const systemInstruction = `
     Sei un assistente esperto in nutrizione e pianificazione dei pasti per l'app MacroMind.
-    Il tuo obiettivo è aiutare l'utente a creare piani alimentari bilanciati, suggerire ricette e rispondere a domande nutrizionali.
-    
+    Il tuo obiettivo è aiutare l'utente a creare piani alimentari bilanciati secondo le Linee guida
+    per una sana alimentazione del CREA, suggerire ricette e rispondere a domande nutrizionali.
+
     Contesto fornito:
-    - Database alimenti: ${JSON.stringify(context.foods.map(f => ({ name: f.name, cal: f.calories, p: f.proteins, c: f.carbs, f: f.fats })))}
+    - Database alimenti dell'utente (valori per 100g): ${JSON.stringify(context.foods.map(f => ({ name: f.name, kcal: f.calories, prot: f.proteins, carb: f.carbs, grassi: f.fats })))}
     - Preferenze utente: ${JSON.stringify(context.userPreferences || 'Nessuna specifica')}
     - Obiettivi dieta: ${JSON.stringify(context.dietGoals || 'Nessuno specifico')}
-    
+
     Regole di interazione:
     1. Basati primariamente sugli alimenti forniti nel database dell'utente.
     2. Mantieni un tono professionale, incoraggiante e scientifico.
@@ -62,18 +85,8 @@ export const sendMessageToGemini = async (
     6. Se l'utente chiede qualcosa al di fuori della nutrizione, riporta gentilmente la conversazione sui temi di salute e benessere.
   `;
 
-  const model = genAI.getGenerativeModel({ 
-    model: MODEL_NAME,
-    systemInstruction: {
-      role: "system",
-      parts: [{ text: systemInstruction }]
-    }
-  });
-
   const generationConfig = {
     temperature: 0.7,
-    topK: 1,
-    topP: 1,
     maxOutputTokens: 2048,
   };
 
@@ -84,57 +97,28 @@ export const sendMessageToGemini = async (
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE },
   ];
 
-  const chatHistory = history.map(msg => ({
-    role: msg.role,
-    parts: msg.parts
-  }));
+  // L'API richiede che la history inizi con un messaggio 'user':
+  // scartiamo eventuali messaggi 'model' iniziali (es. messaggi di errore salvati).
+  const firstUserIdx = history.findIndex(m => m.role === 'user');
+  const chatHistory = firstUserIdx === -1 ? [] : history.slice(firstUserIdx);
 
+  const model = genAI.getGenerativeModel({ model: MODEL_NAME, systemInstruction });
   const chat = model.startChat({
     generationConfig,
     safetySettings,
     history: chatHistory,
   });
 
-  const startTime = Date.now();
-
   try {
     const result = await chat.sendMessage(message);
-    const response = await result.response;
-    const text = response.text();
-    const endTime = Date.now();
-    
+    const text = result.response.text();
     if (!text) {
       throw new Error("Risposta vuota dall'AI");
     }
-    
-    console.log('[AI Assistant] ✅ Risposta ricevuta:', {
-      durationMs: endTime - startTime,
-      textLength: text.length,
-      timestamp: new Date().toISOString()
-    });
-
     return text;
   } catch (error: any) {
-    const endTime = Date.now();
-    console.error('[AI Assistant] ❌ Errore API Gemini:', {
-      error: error.message,
-      durationMs: endTime - startTime,
-      timestamp: new Date().toISOString()
-    });
-    
-    if (error.message?.includes('403') || error.message?.includes('API_KEY_INVALID')) {
-      throw new Error("La chiave API di Gemini non è valida o non ha i permessi necessari.");
-    }
-    
-    if (error.message?.includes('429')) {
-      throw new Error("Limite di richieste raggiunto per l'assistente AI. Riprova tra un minuto.");
-    }
-
-    if (error.message?.includes('ECONNREFUSED') || error.message?.includes('Network Error')) {
-      throw new Error("Errore di rete. Verifica la tua connessione o i permessi del browser.");
-    }
-
-    throw new Error(`Errore AI: ${error.message || "Si è verificato un errore nella comunicazione con l'assistente."}`);
+    console.error('[AI Assistant] Errore API Gemini:', error);
+    throw translateGeminiError(error);
   }
 };
 
@@ -142,32 +126,34 @@ export const generateRecipesWithGemini = async (
   ingredients: string[],
   target: MacroTarget
 ): Promise<RecipeSuggestion[]> => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    throw new Error("Chiave API Gemini non configurata.");
-  }
-
+  const apiKey = getApiKey();
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  const model = genAI.getGenerativeModel({
+    model: MODEL_NAME,
+    generationConfig: {
+      temperature: 0.8,
+      responseMimeType: "application/json",
+    },
+  });
 
   const prompt = `
-    Agisci come uno chef nutrizionista. Crea 3 ricette diverse usando esclusivamente o principalmente questi ingredienti: ${ingredients.join(', ')}.
+    Agisci come uno chef nutrizionista che segue le Linee guida per una sana alimentazione del CREA.
+    Crea 3 ricette diverse usando esclusivamente o principalmente questi ingredienti: ${ingredients.join(', ')}.
     Ogni ricetta deve avvicinarsi a questi target nutrizionali:
     - Calorie: ${target.totalCalories} kcal
-    - Carboidrati: ${target.carbsPercent}%
-    - Proteine: ${target.proteinsPercent}%
-    - Grassi: ${target.fatsPercent}%
+    - Carboidrati: ${target.carbsPercent}% dell'energia
+    - Proteine: ${target.proteinsPercent}% dell'energia
+    - Grassi: ${target.fatsPercent}% dell'energia
 
-    Per ogni ricetta, fornisci:
-    1. Un titolo accattivante.
+    Per ogni ricetta fornisci:
+    1. Un titolo accattivante in italiano.
     2. Una breve descrizione.
-    3. Lista ingredienti con quantità precise in grammi.
+    3. Lista ingredienti con quantità precise in grammi (campo "amount" solo numero + "g", es. "120 g").
     4. Istruzioni di preparazione passo-passo.
     5. Calcolo dei macronutrienti finali.
-    6. Una spiegazione dettagliata del perché questa ricetta è bilanciata per i target forniti.
+    6. Una spiegazione del perché la ricetta è bilanciata per i target forniti.
 
-    Rispondi esclusivamente in formato JSON come un array di oggetti con questa struttura:
+    Rispondi esclusivamente con un array JSON di oggetti con questa struttura esatta:
     [{
       "title": string,
       "description": string,
@@ -180,16 +166,22 @@ export const generateRecipesWithGemini = async (
 
   try {
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    // Pulizia del testo per estrarre solo il JSON (a volte Gemini aggiunge ```json ... ```)
+    const text = result.response.text();
+
+    // Estrai il JSON anche se il modello aggiunge testo o recinzioni ```json
     const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error("Risposta AI non valida");
-    
-    return JSON.parse(jsonMatch[0]);
+    if (!jsonMatch) throw new Error("La risposta dell'AI non contiene ricette valide. Riprova.");
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      throw new Error("La risposta dell'AI non contiene ricette valide. Riprova.");
+    }
+    return parsed;
   } catch (error: any) {
     console.error('Errore generazione ricette Gemini:', error);
-    throw new Error(`Impossibile generare ricette: ${error.message}`);
+    if (error instanceof SyntaxError) {
+      throw new Error("L'AI ha restituito un formato non valido. Riprova.");
+    }
+    throw translateGeminiError(error);
   }
 };

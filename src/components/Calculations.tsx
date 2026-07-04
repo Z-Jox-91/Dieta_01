@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RotateCcw, Target, Settings, Percent } from 'lucide-react';
+import { Calculator, Target, Settings, Percent } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { CREA_RANGES } from '../utils/mealBalance';
 
 interface CalculationData {
   age: number;
@@ -38,11 +39,7 @@ interface MealNutrientRanges {
 
 interface DailyMealKcal {
   [day: string]: {
-    Colazione: number;
-    Pranzo: number;
-    Cena: number;
-    Spuntino1: number;
-    Spuntino2: number;
+    [meal: string]: number;
   };
 }
 
@@ -65,10 +62,11 @@ export const Calculations: React.FC = () => {
   const [dailyCalorieLimits, setDailyCalorieLimits] = useState<DailyCalorieLimit>({});
   
   // Nuovi stati per parametri pasti
+  // Default: range CREA/LARN per una sana alimentazione
   const [mealRanges, setMealRanges] = useState<MealNutrientRanges>({
-    carbs: { min: 45, max: 55 },
-    proteins: { min: 25, max: 35 },
-    fats: { min: 15, max: 25 }
+    carbs: { ...CREA_RANGES.carbs },
+    proteins: { ...CREA_RANGES.proteins },
+    fats: { ...CREA_RANGES.fats }
   });
   
   const [dailyMealKcal, setDailyMealKcal] = useState<DailyMealKcal>(
@@ -262,7 +260,7 @@ export const Calculations: React.FC = () => {
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">LAF</label>
-            <input type="number" value={data.laf || ''} step="0.05" min="1.45" max="2.1" onChange={(e) => setData({...data, laf: parseFloat(e.target.value) || 1.45})} className="md3-input w-full" />
+            <input type="number" value={data.laf || ''} step="0.05" min="1.2" max="2.4" onChange={(e) => setData({...data, laf: parseFloat(e.target.value) || 1.4})} className="md3-input w-full" />
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Proteine/kg</label>
@@ -429,7 +427,7 @@ export const Calculations: React.FC = () => {
                       <td key={meal} className="md3-table-td p-2">
                         <input
                           type="number"
-                          value={dailyMealKcal[day][meal] || ''}
+                          value={dailyMealKcal[day]?.[meal] || ''}
                           onChange={(e) => handleMealKcalChange(day, meal, e.target.value)}
                           className="md3-input w-full py-1 text-center text-xs font-bold"
                           placeholder="kcal"

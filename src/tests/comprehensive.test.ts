@@ -1,6 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { optimizePortions, FoodMacroProfile, MacroTarget } from '../utils/portionOptimizer';
-import { sendMessageToGemini } from '../utils/gemini';
 
 describe('MacroMind Comprehensive Validation', () => {
   
@@ -66,7 +65,7 @@ describe('MacroMind Comprehensive Validation', () => {
     const simulateRequest = async () => {
       const start = Date.now();
       // Simuliamo una chiamata asincrona (mock)
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500)); // 0.5 - 1.5s
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50)); // 50 - 150ms
       return Date.now() - start;
     };
 

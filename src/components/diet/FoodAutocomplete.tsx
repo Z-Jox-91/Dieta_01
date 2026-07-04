@@ -1,18 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Check } from 'lucide-react';
 import { db, auth } from '../../firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
-// Definizione dell'interfaccia per i dati nutrizionali
-interface NutritionalData {
-  calories: number;
-  proteins: number;
-  carbs: number;
-  fats: number;
-  category: string;
-}
-
-interface FoodItem {
+/** Valori nutrizionali per 100 g dell'alimento selezionato. */
+export interface FoodOption {
   name: string;
   calories: number;
   proteins: number;
@@ -23,116 +16,127 @@ interface FoodItem {
 
 interface FoodAutocompleteProps {
   value: string;
-  onChange: (food: string, nutritionalData: NutritionalData) => void;
-  grams: number;
+  /** Chiamato con l'alimento selezionato (valori per 100 g), o null se il campo viene svuotato. */
+  onSelect: (food: FoodOption | null) => void;
 }
 
-// Database alimenti iniziale vuoto
-let foodDatabase: FoodItem[] = [];
+// ---------------------------------------------------------------------------
+// Store condiviso del database alimenti: una sola sottoscrizione Firestore
+// in tempo reale per tutti i campi di ricerca, avviata dopo il login.
+// ---------------------------------------------------------------------------
+let foodDatabase: FoodOption[] = [];
+const listeners = new Set<(foods: FoodOption[]) => void>();
+let subscriptionStarted = false;
 
-// Funzione per caricare il database da Firestore
-const loadFoodDatabase = async () => {
-  if (!auth.currentUser) return;
-  
-  try {
-    const foodsCollection = collection(db, 'alimenti');
-    const q = query(foodsCollection, orderBy('name', 'asc'));
-    const foodsSnapshot = await getDocs(q);
-    const foodsList = foodsSnapshot.docs.map(doc => doc.data() as FoodItem);
-    
-    if (foodsList.length > 0) {
-      foodDatabase = foodsList;
-    }
-  } catch (error) {
-    console.error('Errore nel caricamento del database alimentare da Firestore:', error);
-  }
+const startFoodSubscription = () => {
+  if (subscriptionStarted) return;
+  subscriptionStarted = true;
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) return;
+    const q = query(collection(db, 'alimenti'), orderBy('name', 'asc'));
+    onSnapshot(q, (snapshot) => {
+      foodDatabase = snapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          name: data.name || '',
+          calories: Number(data.calories) || 0,
+          proteins: Number(data.proteins) || 0,
+          carbs: Number(data.carbs) || 0,
+          fats: Number(data.fats) || 0,
+          category: data.category || '',
+        };
+      });
+      listeners.forEach(fn => fn(foodDatabase));
+    }, (error) => {
+      console.error('Errore nel caricamento del database alimentare:', error);
+    });
+  });
 };
 
-// Carica il database all'inizializzazione
-loadFoodDatabase();
-
-export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onChange, grams }) => {
-  // Carica il database alimentare da Firestore all'avvio del componente
-  useEffect(() => {
-    loadFoodDatabase();
-  }, []);
+export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onSelect }) => {
   const [searchTerm, setSearchTerm] = useState(value);
-  const [suggestions, setSuggestions] = useState<FoodItem[]>([]);
+  const [suggestions, setSuggestions] = useState<FoodOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
+  const [highlighted, setHighlighted] = useState(-1);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
-  // Inizializza lo stato selezionato se il valore è già impostato
+  // Avvia (una sola volta) la sottoscrizione al database e registra il listener
   useEffect(() => {
-    if (value && !selectedFood) {
-      const food = foodDatabase.find(item => item.name === value);
-      if (food) {
-        setSelectedFood(food);
-      }
-    }
-  }, [value, selectedFood]);
+    startFoodSubscription();
+    const listener = () => {
+      // il database è arrivato/cambiato: se l'utente sta già digitando, aggiorna i suggerimenti
+      setSuggestions(prev => (prev.length > 0 ? filterFoods(searchTermRef.current) : prev));
+    };
+    listeners.add(listener);
+    return () => { listeners.delete(listener); };
+  }, []);
 
-  // Gestisce il click fuori dal componente per chiudere i suggerimenti
+  const searchTermRef = useRef(searchTerm);
+  searchTermRef.current = searchTerm;
+
+  // Sincronizza il campo quando il valore cambia dall'esterno (ottimizzatore, AI, cambio ricetta)
+  useEffect(() => {
+    setSearchTerm(value);
+  }, [value]);
+
+  // Chiude i suggerimenti cliccando fuori
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtra i suggerimenti in base al termine di ricerca
-  const filterSuggestions = (term: string) => {
-    if (!term.trim()) {
-      setSuggestions([]);
-      return;
+  const filterFoods = (term: string): FoodOption[] => {
+    const normalized = term.toLowerCase().trim();
+    if (!normalized) return [];
+    const startsWith: FoodOption[] = [];
+    const contains: FoodOption[] = [];
+    for (const food of foodDatabase) {
+      const name = food.name.toLowerCase();
+      if (name.startsWith(normalized)) startsWith.push(food);
+      else if (name.includes(normalized)) contains.push(food);
     }
-
-    const normalizedTerm = term.toLowerCase().trim();
-    const filtered = foodDatabase.filter(food => {
-      const normalizedFood = food.name.toLowerCase();
-      // Ricerca più intelligente: 
-      // 1. Deve contenere il termine come sottostringa continua
-      // 2. Oppure deve iniziare con il termine
-      return normalizedFood.includes(normalizedTerm);
-    });
-
-    setSuggestions(filtered);
+    return [...startsWith, ...contains].slice(0, 50);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value;
     setSearchTerm(term);
     setShowSuggestions(true);
-    filterSuggestions(term);
+    setHighlighted(-1);
+    setSuggestions(filterFoods(term));
 
-    // Se l'input viene cancellato, resetta il cibo selezionato
     if (!term) {
-      setSelectedFood(null);
-      onChange('', { calories: 0, proteins: 0, carbs: 0, fats: 0, category: '' });
+      onSelect(null);
     }
   };
 
-  const handleSelectFood = (food: FoodItem) => {
+  const handleSelectFood = (food: FoodOption) => {
     setSearchTerm(food.name);
-    setSelectedFood(food);
     setShowSuggestions(false);
+    setHighlighted(-1);
+    onSelect(food);
+  };
 
-    // Calcola i valori nutrizionali in base ai grammi
-    const calculatedValues = {
-      calories: (food.calories / 100) * (grams || 0),
-      proteins: (food.proteins / 100) * (grams || 0),
-      carbs: (food.carbs / 100) * (grams || 0),
-      fats: (food.fats / 100) * (grams || 0),
-      category: food.category
-    };
-
-    onChange(food.name, calculatedValues);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlighted(prev => (prev + 1) % suggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlighted(prev => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSelectFood(suggestions[highlighted >= 0 ? highlighted : 0]);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
   };
 
   return (
@@ -142,10 +146,11 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onCha
           type="text"
           value={searchTerm}
           onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           onFocus={() => {
             if (searchTerm) {
               setShowSuggestions(true);
-              filterSuggestions(searchTerm);
+              setSuggestions(filterFoods(searchTerm));
             }
           }}
           className="md3-input pl-10 w-full text-sm py-2"
@@ -154,20 +159,36 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onCha
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-sage-400 dark:text-sage-500" />
       </div>
 
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && (
         <div className="md3-dropdown max-h-[300px] overflow-y-auto scrollbar-thin shadow-2xl">
-          {suggestions.map((food, index) => (
-            <div
-              key={`${food.name}-${food.calories}-${index}`}
-              className="md3-dropdown-item flex-col items-start space-x-0 border-b border-sage-50 dark:border-sage-800/50 last:border-none"
-              onClick={() => handleSelectFood(food)}
-            >
-              <div className="font-bold text-sage-900 dark:text-sage-100">{food.name}</div>
-              <div className="text-[10px] uppercase tracking-widest font-black text-sage-500 dark:text-sage-400 mt-1">
-                {food.calories} kcal • P: {food.proteins}g • C: {food.carbs}g • F: {food.fats}g
+          {suggestions.length > 0 ? (
+            suggestions.map((food, index) => (
+              <div
+                key={`${food.name}-${index}`}
+                className={`md3-dropdown-item flex-col items-start space-x-0 border-b border-sage-50 dark:border-sage-800/50 last:border-none ${
+                  index === highlighted ? 'bg-primary-50 dark:bg-primary-900/30' : ''
+                }`}
+                onMouseEnter={() => setHighlighted(index)}
+                onClick={() => handleSelectFood(food)}
+              >
+                <div className="font-bold text-sage-900 dark:text-sage-100 flex items-center">
+                  {food.name === value && <Check className="w-3 h-3 mr-1 text-primary-500" />}
+                  {food.name}
+                </div>
+                <div className="text-[10px] uppercase tracking-widest font-black text-sage-500 dark:text-sage-400 mt-1">
+                  {Math.round(food.calories)} kcal • P: {food.proteins}g • C: {food.carbs}g • G: {food.fats}g (per 100g)
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            searchTerm.trim() !== '' && (
+              <div className="px-4 py-3 text-sm text-sage-500 dark:text-sage-400">
+                {foodDatabase.length === 0
+                  ? 'Database alimenti vuoto: aggiungi alimenti nella scheda "Alimenti".'
+                  : 'Nessun alimento trovato.'}
+              </div>
+            )
+          )}
         </div>
       )}
     </div>

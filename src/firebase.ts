@@ -53,11 +53,6 @@ enableIndexedDbPersistence(db).catch((err) => {
   }
 });
 
-// Abilita la modalità di debug per Firebase Auth
 if (import.meta.env.DEV) {
-  console.log('Firebase in modalità sviluppo - Debug abilitato');
-  console.log('Firebase Config:', firebaseConfig);
-  console.log('Firebase App inizializzata:', app);
-  console.log('Firebase Auth:', auth);
-  console.log('Firebase Firestore:', db);
+  console.log('Firebase in modalità sviluppo - progetto:', firebaseConfig.projectId);
 }

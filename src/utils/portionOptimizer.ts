@@ -1,4 +1,5 @@
-import { matrix, multiply, transpose, inv, add, identity, sum } from 'mathjs';
+import { matrix, multiply, transpose, inv, add, identity } from 'mathjs';
+import { evaluateMealBalance, FOOD_EXAMPLES, CREA_RANGES } from './mealBalance';
 
 export interface FoodMacroProfile {
   id: string;
@@ -30,133 +31,178 @@ export interface OptimizationResult {
   suggestions?: string[];
 }
 
+const MIN_GRAMS = 10;   // porzione minima sensata
+const MAX_GRAMS = 600;  // porzione massima sensata
+
+/**
+ * Risolve il sistema ai minimi quadrati pesati per il sottoinsieme di alimenti "liberi",
+ * dato il residuo del target dopo aver fissato gli alimenti bloccati ai propri limiti.
+ */
+function solveWLS(A_cols: number[][], b: number[], weights: number[]): number[] {
+  const n = A_cols.length;
+  const A = matrix([0, 1, 2, 3].map(r => A_cols.map(col => col[r])));
+  const bM = matrix(b.map(v => [v]));
+  const W = matrix([
+    [weights[0], 0, 0, 0],
+    [0, weights[1], 0, 0],
+    [0, 0, weights[2], 0],
+    [0, 0, 0, weights[3]],
+  ]);
+
+  const AT = transpose(A);
+  const ATW = multiply(AT, W);
+  const ATWA = multiply(ATW, A);
+  const ATWb = multiply(ATW, bM);
+
+  const lambda = 0.01;
+  const I = identity(n);
+  const regularized = add(ATWA, multiply(I, lambda));
+  const x = multiply(inv(regularized as any), ATWb);
+
+  return (x.toArray() as any[]).map(v => (Array.isArray(v) ? v[0] : v)) as number[];
+}
+
 /**
  * Ottimizza le porzioni degli alimenti per soddisfare i target calorici e di macronutrienti.
- * Utilizza un approccio a Minimi Quadrati Pesati (Weighted Least Squares) con gerarchia di priorità.
+ * Minimi Quadrati Pesati con vincoli sui grammi [MIN_GRAMS, MAX_GRAMS] applicati in modo
+ * iterativo: gli alimenti che escono dai limiti vengono bloccati e il sistema viene
+ * risolto di nuovo sui rimanenti.
  */
 export function optimizePortions(
   foods: FoodMacroProfile[],
   target: MacroTarget
 ): OptimizationResult {
-  const startTime = performance.now();
-  
   if (foods.length === 0) {
     return { portions: [], isFeasible: false, accuracy: 0, suggestions: ["Aggiungi almeno un alimento."] };
   }
 
-  // 1. Definiamo i target in kcal assolute
+  // 1. Target in kcal assolute
   const targetCarbsKcal = (target.totalCalories * target.carbsPercent) / 100;
   const targetProteinsKcal = (target.totalCalories * target.proteinsPercent) / 100;
   const targetFatsKcal = (target.totalCalories * target.fatsPercent) / 100;
+  const b_full = [target.totalCalories, targetCarbsKcal, targetProteinsKcal, targetFatsKcal];
 
-  // 2. Analisi Fattibilità (Esempio: se cerchiamo proteine e abbiamo solo riso)
-  const totalProteinsKcalAvailable = sum(foods.map(f => f.proteinsPer100g * 4));
-  const totalCarbsKcalAvailable = sum(foods.map(f => f.carbsPer100g * 4));
-  const totalFatsKcalAvailable = sum(foods.map(f => f.fatsPer100g * 9));
-
+  // 2. Analisi fattibilità: quali gruppi mancano del tutto?
   const suggestions: string[] = [];
-  if (targetProteinsKcal > 0 && totalProteinsKcalAvailable === 0) {
-    suggestions.push("Aggiungi una fonte proteica (carne, pesce, legumi).");
+  const totalProteinsAvailable = foods.reduce((s, f) => s + f.proteinsPer100g, 0);
+  const totalCarbsAvailable = foods.reduce((s, f) => s + f.carbsPer100g, 0);
+  const totalFatsAvailable = foods.reduce((s, f) => s + f.fatsPer100g, 0);
+
+  if (targetProteinsKcal > 0 && totalProteinsAvailable < 1) {
+    suggestions.push(`Manca una fonte proteica: aggiungi ad esempio ${FOOD_EXAMPLES.proteins}.`);
   }
-  if (targetCarbsKcal > 0 && totalCarbsKcalAvailable === 0) {
-    suggestions.push("Aggiungi una fonte di carboidrati (cereali, frutta).");
+  if (targetCarbsKcal > 0 && totalCarbsAvailable < 1) {
+    suggestions.push(`Manca una fonte di carboidrati: aggiungi ad esempio ${FOOD_EXAMPLES.carbs}.`);
   }
-  if (targetFatsKcal > 0 && totalFatsKcalAvailable === 0) {
-    suggestions.push("Aggiungi una fonte di grassi sani (olio, frutta secca).");
+  if (targetFatsKcal > 0 && totalFatsAvailable < 1) {
+    suggestions.push(`Manca una fonte di grassi: aggiungi ad esempio ${FOOD_EXAMPLES.fats}.`);
   }
 
-  // 3. Costruiamo la matrice A (4 equazioni x N alimenti)
-  const A_data: number[][] = [
-    foods.map(f => f.caloriesPer100g / 100),
-    foods.map(f => (f.carbsPer100g * 4) / 100),
-    foods.map(f => (f.proteinsPer100g * 4) / 100),
-    foods.map(f => (f.fatsPer100g * 9) / 100),
-  ];
-
-  const b_data: number[][] = [
-    [target.totalCalories],
-    [targetCarbsKcal],
-    [targetProteinsKcal],
-    [targetFatsKcal],
-  ];
-
-  // 4. Pesi per la gerarchia (Calorie > Proteine > Carbo/Grassi)
-  const weights = [2.0, 1.0, 1.5, 1.0]; // Calorie=2.0, Carbo=1.0, Prote=1.5, Grassi=1.0
-  const W = matrix([
-    [weights[0], 0, 0, 0],
-    [0, weights[1], 0, 0],
-    [0, 0, weights[2], 0],
-    [0, 0, 0, weights[3]]
+  // 3. Colonne della matrice (contributo per grammo * 100)
+  const columns = foods.map(f => [
+    f.caloriesPer100g / 100,
+    (f.carbsPer100g * 4) / 100,
+    (f.proteinsPer100g * 4) / 100,
+    (f.fatsPer100g * 9) / 100,
   ]);
 
+  // Pesi gerarchia: Calorie > Proteine > Carbo/Grassi
+  const weights = [2.0, 1.0, 1.5, 1.0];
+
   try {
-    const A = matrix(A_data);
-    const b = matrix(b_data);
+    // 4. Risoluzione iterativa con vincoli
+    const grams: number[] = new Array(foods.length).fill(0);
+    const pinned: (number | null)[] = new Array(foods.length).fill(null);
 
-    // Risolviamo con Minimi Quadrati Pesati: x = (A^T * W * A + lambda * I)^-1 * A^T * W * b
-    const AT = transpose(A);
-    const ATW = multiply(AT, W);
-    const ATWA = multiply(ATW, A);
-    const ATWb = multiply(ATW, b);
+    for (let iter = 0; iter < foods.length + 1; iter++) {
+      const freeIdx = foods.map((_, i) => i).filter(i => pinned[i] === null);
+      if (freeIdx.length === 0) break;
 
-    const lambda = 0.01; // Leggermente più alto per maggiore stabilità
-    const size = ATWA.size()[0];
-    const I = identity(size);
-    const regularizedATWA = add(ATWA, multiply(I, lambda));
-    
-    const x = multiply(inv(regularizedATWA as any), ATWb);
-    let resultGrams = x.toArray().map((val: any) => Math.max(10, Array.isArray(val) ? val[0] : val)); // Minimo 10g
+      // Residuo del target dopo il contributo degli alimenti bloccati
+      const residual = b_full.map((v, r) =>
+        v - foods.reduce((s, _f, i) => (pinned[i] !== null ? s + columns[i][r] * (pinned[i] as number) : s), 0)
+      );
 
-    // 5. Calcolo accuratezza e analisi conflitti
-    const finalValues = multiply(A, matrix(resultGrams.map(g => [g]))).toArray().map((v: any) => v[0]);
-    const errors = finalValues.map((v: number, i: number) => Math.abs(v - b_data[i][0]) / b_data[i][0]);
-    const avgError = sum(errors) / 4;
-    const accuracy = Math.max(0, 100 * (1 - avgError));
+      const solution = solveWLS(freeIdx.map(i => columns[i]), residual, weights);
 
-    // Analisi Proattiva Conflitti
-    if (accuracy < 90) {
-      // Identifica l'alimento con il profilo più sbilanciato rispetto al target
-      foods.forEach(f => {
-        const foodKcal = f.caloriesPer100g;
-        const foodProtRatio = (f.proteinsPer100g * 4) / foodKcal;
-        const targetProtRatio = target.proteinsPercent / 100;
-        
-        if (foodProtRatio > targetProtRatio * 2) {
-          suggestions.push(`L'alimento "${f.name}" è estremamente proteico rispetto al tuo target. Riducilo o aggiungi carboidrati.`);
-        } else if (foodProtRatio < targetProtRatio * 0.5 && foodKcal > 200) {
-          suggestions.push(`"${f.name}" è densamente calorico ma povero di proteine. Considera di sostituirlo con una fonte più magra.`);
+      // Blocca gli alimenti fuori dai limiti (il più fuori-range per primo)
+      let worst = -1;
+      let worstDist = 0;
+      solution.forEach((g, k) => {
+        const dist = g < MIN_GRAMS ? MIN_GRAMS - g : g > MAX_GRAMS ? g - MAX_GRAMS : 0;
+        if (dist > worstDist) {
+          worstDist = dist;
+          worst = k;
         }
       });
 
+      if (worst === -1) {
+        freeIdx.forEach((i, k) => { grams[i] = solution[k]; });
+        break;
+      }
+
+      const i = freeIdx[worst];
+      pinned[i] = solution[worst] < MIN_GRAMS ? MIN_GRAMS : MAX_GRAMS;
+      grams[i] = pinned[i] as number;
+      // aggiorna anche gli altri in attesa dell'iterazione successiva
+      freeIdx.forEach((j, k) => {
+        if (j !== i) grams[j] = Math.min(MAX_GRAMS, Math.max(MIN_GRAMS, solution[k]));
+      });
+    }
+
+    const resultGrams = grams.map(g => Math.min(MAX_GRAMS, Math.max(MIN_GRAMS, g)));
+
+    // 5. Accuratezza rispetto al target
+    const finalValues = [0, 1, 2, 3].map(r =>
+      foods.reduce((s, _f, i) => s + columns[i][r] * resultGrams[i], 0)
+    );
+    const errors = finalValues.map((v, i) => (b_full[i] > 0 ? Math.abs(v - b_full[i]) / b_full[i] : 0));
+    const avgError = errors.reduce((s, e) => s + e, 0) / 4;
+    const accuracy = Math.max(0, Math.min(100, 100 * (1 - avgError)));
+
+    // 6. Suggerimenti CREA sul risultato raggiunto
+    if (accuracy < 90) {
+      const balance = evaluateMealBalance({
+        calories: finalValues[0],
+        carbs: finalValues[1] / 4,
+        proteins: finalValues[2] / 4,
+        fats: finalValues[3] / 9,
+      });
+      balance.suggestions.forEach(s => {
+        if (!suggestions.includes(s)) suggestions.push(s);
+      });
+
       if (finalValues[0] > target.totalCalories * 1.1) {
-        suggestions.push("Le calorie totali superano il target. Prova a rimuovere l'alimento più grasso.");
+        suggestions.push("Le calorie totali superano il target: riduci le porzioni o rimuovi l'alimento più calorico.");
+      } else if (finalValues[0] < target.totalCalories * 0.9) {
+        suggestions.push("Le calorie totali sono sotto il target: aumenta le porzioni o aggiungi un alimento.");
       }
     }
 
-    const endTime = performance.now();
-    
     return {
       portions: foods.map((food, i) => ({
         foodId: food.id,
-        grams: Math.round(resultGrams[i])
+        grams: Math.round(resultGrams[i]),
       })),
       isFeasible: accuracy > 70,
       accuracy,
-      suggestions: accuracy < 90 ? [...suggestions, "Considera di bilanciare meglio gli alimenti scelti."] : suggestions
+      suggestions,
     };
-
   } catch (error) {
     console.error("Errore nell'ottimizzazione porzioni:", error);
-    // Fallback: Distribuzione bilanciata base
+    // Fallback: distribuzione calorica uniforme
     return {
       portions: foods.map(f => ({
         foodId: f.id,
-        grams: Math.round(((target.totalCalories / foods.length) / f.caloriesPer100g) * 100)
+        grams: f.caloriesPer100g > 0
+          ? Math.round(((target.totalCalories / foods.length) / f.caloriesPer100g) * 100)
+          : 100,
       })),
       isFeasible: false,
       accuracy: 50,
-      suggestions: ["Impossibile trovare soluzione precisa. Suggerimento: aggiungi alimenti più vari."]
+      suggestions: ["Impossibile trovare una soluzione precisa: prova ad aggiungere alimenti più vari (una fonte di carboidrati, una di proteine e una di grassi)."],
     };
   }
 }
 
+export { CREA_RANGES };
