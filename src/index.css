@@ -72,7 +72,7 @@
   }
 
   .md3-table-container {
-    @apply overflow-hidden rounded-md3-medium border border-sage-200 dark:border-sage-800 bg-white dark:bg-surface-dark shadow-md3-1;
+    @apply overflow-hidden rounded-md3-medium border border-sage-200 dark:border-sage-800 bg-white dark:bg-surface-dark;
   }
 
   .md3-table {

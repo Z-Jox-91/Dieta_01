@@ -259,7 +259,7 @@ export const Calculations: React.FC = () => {
             </select>
           </div>
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">LAF</label>
+            <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">LAF (Livello Attività Fisica)</label>
             <input type="number" value={data.laf || ''} step="0.05" min="1.2" max="2.4" onChange={(e) => setData({...data, laf: parseFloat(e.target.value) || 1.4})} className="md3-input w-full" />
           </div>
           <div className="space-y-2">
@@ -295,7 +295,7 @@ export const Calculations: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
-              <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">BMI</p>
+              <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">BMI (Indice Massa Corporea)</p>
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.bmi.toFixed(1)}</p>
               <div className="mt-3 inline-block px-3 py-1 bg-white dark:bg-surface-dark rounded-full text-xs font-bold text-sage-600 dark:text-sage-400 border border-primary-100 dark:border-primary-800">{getBmiCategory(results.bmi)}</div>
             </div>
@@ -304,11 +304,11 @@ export const Calculations: React.FC = () => {
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.idealWeight.toFixed(1)} <span className="text-lg">kg</span></p>
             </div>
             <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
-              <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">MB</p>
+              <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">MB (Metabolismo Basale)</p>
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.basalMetabolism)} <span className="text-lg">kcal</span></p>
             </div>
             <div className="bg-accent-50 dark:bg-accent-900/10 p-6 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
-              <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">TDEE</p>
+              <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">TDEE (Fabbisogno Calorico Giornaliero)</p>
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.dailyMetabolism)} <span className="text-lg">kcal</span></p>
             </div>
             <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
