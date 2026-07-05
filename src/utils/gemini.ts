@@ -67,7 +67,7 @@ export const sendMessageToGemini = async (
   const genAI = new GoogleGenerativeAI(apiKey);
 
   const systemInstruction = `
-    Sei un assistente esperto in nutrizione e pianificazione dei pasti per l'app MacroMind.
+    Sei un assistente esperto in nutrizione e pianificazione dei pasti per l'app Cunzari.
     Il tuo obiettivo è aiutare l'utente a creare piani alimentari bilanciati secondo le Linee guida
     per una sana alimentazione del CREA, suggerire ricette e rispondere a domande nutrizionali.
 

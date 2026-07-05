@@ -89,7 +89,7 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
         className="flex items-center space-x-2 px-6 py-3 bg-primary-600 dark:bg-primary-500 text-white rounded-full hover:bg-primary-700 transition-all shadow-lg active:scale-95"
       >
         <Calculator className="w-5 h-5" />
-        <span className="font-bold uppercase tracking-wider text-xs">Ottimizzatore MacroMind</span>
+        <span className="font-bold uppercase tracking-wider text-xs">Ottimizzatore Cunzari</span>
       </button>
 
       {isOpen && (
@@ -213,7 +213,7 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
           )}
 
           <p className="mt-6 text-[10px] text-sage-400 dark:text-sage-500 text-center uppercase tracking-widest font-bold">
-            Algoritmo MacroMind v2.0 • Gerarchia Nutrizionale Attiva
+            Algoritmo Cunzari v2.0 • Gerarchia Nutrizionale Attiva
           </p>
         </div>
       )}

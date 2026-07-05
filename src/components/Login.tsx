@@ -108,8 +108,8 @@ export const Login: React.FC<LoginProps> = ({ onAuth }) => {
           <div className="w-20 h-20 bg-primary-600 dark:bg-primary-500 rounded-md3-medium mx-auto mb-6 flex items-center justify-center shadow-md3-3">
             <Lock className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-3xl font-black text-sage-900 dark:text-sage-50 mb-2 tracking-tight">MacroMind</h2>
-          <p className="text-sage-600 dark:text-sage-400 font-medium">La tua nutrizione, semplificata dall'AI</p>
+          <h2 className="text-3xl font-black text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Cunzari</h2>
+          <p className="text-sage-600 dark:text-sage-400 font-medium">Ogni pasto, cunzato a puntino</p>
         </div>
 
         {/* Toggle Accedi / Registrati */}

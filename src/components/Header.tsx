@@ -38,8 +38,8 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
               <Activity className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-bold text-sage-900 dark:text-sage-50 truncate">MacroMind</h1>
-              <p className="text-xs text-sage-600 dark:text-sage-400 hidden sm:block">Nutrizione Avanzata</p>
+              <h1 className="text-lg sm:text-xl font-bold text-sage-900 dark:text-sage-50 truncate">Cunzari</h1>
+              <p className="text-xs text-sage-600 dark:text-sage-400 hidden sm:block">Ogni pasto, cunzato a puntino</p>
             </div>
           </div>
 
