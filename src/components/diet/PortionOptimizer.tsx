@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Calculator, RefreshCw, Check, TrendingUp, Lightbulb } from 'lucide-react';
+import { Target, Calculator, RefreshCw, Check, TrendingUp, Lightbulb, CheckCircle2 } from 'lucide-react';
 import { FoodMacroProfile, MacroTarget, optimizePortions, OptimizationResult } from '../../utils/portionOptimizer';
 import { CREA_TARGET, CREA_RANGES } from '../../utils/mealBalance';
 import { db, auth } from '../../firebase';
@@ -20,6 +20,7 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [result, setResult] = useState<OptimizationResult | null>(null);
+  const [applied, setApplied] = useState(false);
   const [target, setTarget] = useState<MacroTarget>({
     totalCalories: 500,
     carbsPercent: CREA_TARGET.carbsPercent,
@@ -64,12 +65,19 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
   const handleOptimize = () => {
     const optimizationResult = optimizePortions(selectedFoods, target);
     setResult(optimizationResult);
+    setApplied(false);
   };
 
   const applyResults = () => {
     if (!result) return;
     onApply(result);
+    setApplied(true);
+  };
+
+  const closePanel = () => {
     setIsOpen(false);
+    setResult(null);
+    setApplied(false);
   };
 
   if (selectedFoods.length === 0) return null;
@@ -77,7 +85,7 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
   return (
     <div className="mt-6 pt-6 border-t border-sage-200 dark:border-sage-800">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => (isOpen ? closePanel() : setIsOpen(true))}
         className="flex items-center space-x-2 px-6 py-3 bg-primary-600 dark:bg-primary-500 text-white rounded-full hover:bg-primary-700 transition-all shadow-lg active:scale-95"
       >
         <Calculator className="w-5 h-5" />
@@ -91,10 +99,28 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
               <Target className="w-5 h-5 mr-3 text-primary-500" />
               Target Pasto: {mealType}
             </h4>
-            <button onClick={() => setIsOpen(false)} className="text-sage-400 hover:text-sage-600 dark:hover:text-sage-200">
+            <button onClick={closePanel} className="text-sage-400 hover:text-sage-600 dark:hover:text-sage-200">
               <RefreshCw className="w-5 h-5" />
             </button>
           </div>
+
+          {applied && (
+            <div className="mb-6 p-5 bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-200 dark:border-green-800/30 flex items-start space-x-3 animate-in fade-in">
+              <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-green-900 dark:text-green-100">Porzioni applicate!</p>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  I grammi degli alimenti sono stati aggiornati nella tabella qui sopra. Scorri in alto per vedere i nuovi valori.
+                </p>
+                <button
+                  onClick={closePanel}
+                  className="mt-3 text-xs font-bold uppercase tracking-wider text-green-700 dark:text-green-300 underline"
+                >
+                  Chiudi
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Target Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -172,10 +198,15 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
                 </button>
                 <button
                   onClick={applyResults}
-                  className="flex-[2] py-3 bg-green-500 text-white font-bold rounded-2xl hover:bg-green-600 shadow-lg flex items-center justify-center space-x-2"
+                  disabled={applied}
+                  className={`flex-[2] py-3 font-bold rounded-2xl shadow-lg flex items-center justify-center space-x-2 transition-all ${
+                    applied
+                      ? 'bg-sage-300 dark:bg-sage-700 text-sage-600 dark:text-sage-400 cursor-not-allowed'
+                      : 'bg-green-500 text-white hover:bg-green-600'
+                  }`}
                 >
                   <Check className="w-5 h-5" />
-                  <span>Applica {result.portions.length} Porzioni</span>
+                  <span>{applied ? 'Applicato' : `Applica ${result.portions.length} Porzioni`}</span>
                 </button>
               </div>
             </div>

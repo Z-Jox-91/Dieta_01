@@ -85,14 +85,14 @@ export const sendMessageToGemini = async (
     6. Se l'utente chiede qualcosa al di fuori della nutrizione, riporta gentilmente la conversazione sui temi di salute e benessere.
   `;
 
+  // "thinkingConfig" non è ancora nei tipi del SDK (@google/generative-ai) ma è
+  // supportato dall'API REST di gemini-2.5-flash: disattiva il "ragionamento"
+  // interno che altrimenti consuma parte di maxOutputTokens, troncando le risposte.
   const generationConfig = {
     temperature: 0.7,
     maxOutputTokens: 8192,
-    // gemini-2.5-flash "pensa" prima di rispondere e quel budget viene sottratto
-    // a maxOutputTokens: lo disattiviamo per un assistente conversazionale,
-    // così tutto il budget va nella risposta visibile (niente più troncamenti).
     thinkingConfig: { thinkingBudget: 0 },
-  };
+  } as any;
 
   const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE },
@@ -139,7 +139,7 @@ export const generateRecipesWithGemini = async (
       maxOutputTokens: 8192,
       thinkingConfig: { thinkingBudget: 0 },
       responseMimeType: "application/json",
-    },
+    } as any,
   });
 
   const prompt = `

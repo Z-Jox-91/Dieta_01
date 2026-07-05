@@ -98,15 +98,27 @@ export function evaluateMealBalance(totals: MacroBreakdown): MealBalanceResult {
     return { macro, label: MACRO_LABEL[macro], percent, range, status };
   });
 
+  const KCAL_PER_GRAM: Record<MacroKey, number> = { carbs: 4, proteins: 4, fats: 9 };
+  const kcalByMacro: Record<MacroKey, number> = { carbs: carbsKcal, proteins: proteinsKcal, fats: fatsKcal };
+
   const suggestions: string[] = [];
   for (const ev of evaluations) {
     if (ev.status === 'low') {
+      // Grammi del macronutriente da aggiungere per raggiungere il minimo CREA,
+      // tenendo conto che l'energia totale del pasto aumenta insieme al macro aggiunto.
+      const p = ev.range.min / 100;
+      const neededKcal = Math.max(0, (p * energyFromMacros - kcalByMacro[ev.macro]) / (1 - p));
+      const neededGrams = Math.round(neededKcal / KCAL_PER_GRAM[ev.macro]);
       suggestions.push(
-        `Mancano ${ev.label} (${ev.percent.toFixed(0)}% invece di almeno ${ev.range.min}%): aggiungi un alimento prevalentemente a base di ${ev.label}, ad esempio ${FOOD_EXAMPLES[ev.macro]}.`
+        `Mancano ${ev.label} (${ev.percent.toFixed(0)}% invece di almeno ${ev.range.min}%): servono circa ${neededGrams}g in più di ${ev.label} puri (~${Math.round(neededKcal)} kcal). Aggiungi un alimento prevalentemente a base di ${ev.label}, ad esempio ${FOOD_EXAMPLES[ev.macro]}.`
       );
     } else if (ev.status === 'high') {
+      // Grammi del macronutriente in eccesso da togliere per rientrare nel massimo CREA.
+      const p = ev.range.max / 100;
+      const excessKcal = Math.max(0, (kcalByMacro[ev.macro] - p * energyFromMacros) / (1 - p));
+      const excessGrams = Math.round(excessKcal / KCAL_PER_GRAM[ev.macro]);
       suggestions.push(
-        `Troppi ${ev.label} (${ev.percent.toFixed(0)}%, il massimo consigliato è ${ev.range.max}%): riduci le porzioni degli alimenti più ricchi di ${ev.label} o aumenta gli altri gruppi.`
+        `Troppi ${ev.label} (${ev.percent.toFixed(0)}%, il massimo consigliato è ${ev.range.max}%): riduci di circa ${excessGrams}g (~${Math.round(excessKcal)} kcal) le porzioni degli alimenti più ricchi di ${ev.label}, oppure aumenta gli altri gruppi.`
       );
     }
   }
