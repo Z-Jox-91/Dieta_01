@@ -80,34 +80,33 @@ function App() {
     }
   }, []);
 
-  const handleLogin = async (userData: User) => {
+  const handleAuth = async (userData: User, mode: 'login' | 'register') => {
     try {
       if (!userData.password) {
         throw new Error('Password richiesta');
       }
 
-      // Crea o accedi all'account con email e password
       let userCredential;
-      try {
-        // Prova prima ad accedere
-        userCredential = await signInWithEmailAndPassword(auth, userData.email, userData.password);
-      } catch (error: any) {
-        // Se l'accesso fallisce per motivi diversi da "utente non trovato", rilancia l'errore
-        // (auth/invalid-credential viene restituito quando l'email non esiste o la password è errata)
-        if (error.code !== 'auth/user-not-found' && error.code !== 'auth/invalid-credential') {
-          throw error;
-        }
-        // Altrimenti, prova a creare un nuovo account
+      if (mode === 'register') {
+        // Registrazione: crea un nuovo account
         userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+      } else {
+        // Accesso: entra con un account esistente
+        userCredential = await signInWithEmailAndPassword(auth, userData.email, userData.password);
       }
 
-      // Salva i dati utente in Firestore
+      // Salva/aggiorna i dati utente in Firestore. In fase di accesso non
+      // sovrascriviamo il nome già salvato (merge), in registrazione lo impostiamo.
       const userDocRef = doc(db, 'users', userCredential.user.uid);
       try {
-        await setDoc(userDocRef, {
-          name: userData.name,
-          email: userData.email
-        });
+        if (mode === 'register') {
+          await setDoc(userDocRef, {
+            name: userData.name,
+            email: userData.email
+          });
+        } else {
+          await setDoc(userDocRef, { email: userData.email }, { merge: true });
+        }
       } catch (firestoreError: any) {
         console.error('Errore durante la scrittura su Firestore:', firestoreError);
         if (firestoreError.code === 'permission-denied') {
@@ -181,7 +180,7 @@ function App() {
           {user ? (
             <Dashboard user={user} />
           ) : (
-            <Login onLogin={handleLogin} />
+            <Login onAuth={handleAuth} />
           )}
         </main>
         <AIAssistant />

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Check } from 'lucide-react';
 import { db, auth } from '../../firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
@@ -54,12 +55,39 @@ const startFoodSubscription = () => {
   });
 };
 
+const DROPDOWN_MAX_HEIGHT = 300;
+
 export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onSelect }) => {
   const [searchTerm, setSearchTerm] = useState(value);
   const [suggestions, setSuggestions] = useState<FoodOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
-  const autocompleteRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const inputWrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Calcola la posizione della tendina in coordinate "fixed", così esce da
+  // qualsiasi contenitore con overflow (es. la tabella dei pasti) e, se non
+  // c'è spazio sotto, si apre verso l'alto.
+  const updatePosition = useCallback(() => {
+    if (!inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const openUp = spaceBelow < DROPDOWN_MAX_HEIGHT && spaceAbove > spaceBelow;
+
+    setDropdownStyle({
+      position: 'fixed',
+      left: rect.left,
+      width: rect.width,
+      zIndex: 9999,
+      maxHeight: Math.min(DROPDOWN_MAX_HEIGHT, openUp ? spaceAbove - 8 : spaceBelow - 8),
+      ...(openUp
+        ? { bottom: window.innerHeight - rect.top + 4 }
+        : { top: rect.bottom + 4 }),
+    });
+  }, []);
 
   // Avvia (una sola volta) la sottoscrizione al database e registra il listener
   useEffect(() => {
@@ -80,10 +108,28 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onSel
     setSearchTerm(value);
   }, [value]);
 
-  // Chiude i suggerimenti cliccando fuori
+  // Mantiene la tendina allineata all'input durante scroll/resize
+  useEffect(() => {
+    if (!showSuggestions) return;
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [showSuggestions, suggestions, updatePosition]);
+
+  // Chiude i suggerimenti cliccando fuori (considerando anche la tendina in portal)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        inputWrapRef.current && !inputWrapRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
+        setShowSuggestions(false);
+      } else if (inputWrapRef.current && !inputWrapRef.current.contains(target) && !dropdownRef.current) {
         setShowSuggestions(false);
       }
     };
@@ -139,10 +185,48 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onSel
     }
   };
 
+  const dropdown = showSuggestions ? (
+    <div
+      ref={dropdownRef}
+      style={dropdownStyle}
+      className="bg-white dark:bg-surface-container-dark rounded-md3-small shadow-2xl border border-sage-200 dark:border-sage-800 overflow-y-auto scrollbar-thin"
+    >
+      {suggestions.length > 0 ? (
+        suggestions.map((food, index) => (
+          <div
+            key={`${food.name}-${index}`}
+            className={`md3-dropdown-item flex-col items-start space-x-0 border-b border-sage-50 dark:border-sage-800/50 last:border-none ${
+              index === highlighted ? 'bg-primary-50 dark:bg-primary-900/30' : ''
+            }`}
+            onMouseEnter={() => setHighlighted(index)}
+            onClick={() => handleSelectFood(food)}
+          >
+            <div className="font-bold text-sage-900 dark:text-sage-100 flex items-center">
+              {food.name === value && <Check className="w-3 h-3 mr-1 text-primary-500 flex-shrink-0" />}
+              {food.name}
+            </div>
+            <div className="text-[10px] uppercase tracking-widest font-black text-sage-500 dark:text-sage-400 mt-1">
+              {Math.round(food.calories)} kcal • P: {food.proteins}g • C: {food.carbs}g • G: {food.fats}g (per 100g)
+            </div>
+          </div>
+        ))
+      ) : (
+        searchTerm.trim() !== '' && (
+          <div className="px-4 py-3 text-sm text-sage-500 dark:text-sage-400">
+            {foodDatabase.length === 0
+              ? 'Database alimenti vuoto: aggiungi alimenti nella scheda "Alimenti".'
+              : 'Nessun alimento trovato.'}
+          </div>
+        )
+      )}
+    </div>
+  ) : null;
+
   return (
-    <div className="relative" ref={autocompleteRef}>
+    <div className="relative" ref={inputWrapRef}>
       <div className="relative">
         <input
+          ref={inputRef}
           type="text"
           value={searchTerm}
           onChange={handleInputChange}
@@ -159,38 +243,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onSel
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-sage-400 dark:text-sage-500" />
       </div>
 
-      {showSuggestions && (
-        <div className="md3-dropdown max-h-[300px] overflow-y-auto scrollbar-thin shadow-2xl">
-          {suggestions.length > 0 ? (
-            suggestions.map((food, index) => (
-              <div
-                key={`${food.name}-${index}`}
-                className={`md3-dropdown-item flex-col items-start space-x-0 border-b border-sage-50 dark:border-sage-800/50 last:border-none ${
-                  index === highlighted ? 'bg-primary-50 dark:bg-primary-900/30' : ''
-                }`}
-                onMouseEnter={() => setHighlighted(index)}
-                onClick={() => handleSelectFood(food)}
-              >
-                <div className="font-bold text-sage-900 dark:text-sage-100 flex items-center">
-                  {food.name === value && <Check className="w-3 h-3 mr-1 text-primary-500" />}
-                  {food.name}
-                </div>
-                <div className="text-[10px] uppercase tracking-widest font-black text-sage-500 dark:text-sage-400 mt-1">
-                  {Math.round(food.calories)} kcal • P: {food.proteins}g • C: {food.carbs}g • G: {food.fats}g (per 100g)
-                </div>
-              </div>
-            ))
-          ) : (
-            searchTerm.trim() !== '' && (
-              <div className="px-4 py-3 text-sm text-sage-500 dark:text-sage-400">
-                {foodDatabase.length === 0
-                  ? 'Database alimenti vuoto: aggiungi alimenti nella scheda "Alimenti".'
-                  : 'Nessun alimento trovato.'}
-              </div>
-            )
-          )}
-        </div>
-      )}
+      {dropdown && createPortal(dropdown, document.body)}
     </div>
   );
 };
