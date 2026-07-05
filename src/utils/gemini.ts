@@ -87,7 +87,11 @@ export const sendMessageToGemini = async (
 
   const generationConfig = {
     temperature: 0.7,
-    maxOutputTokens: 2048,
+    maxOutputTokens: 8192,
+    // gemini-2.5-flash "pensa" prima di rispondere e quel budget viene sottratto
+    // a maxOutputTokens: lo disattiviamo per un assistente conversazionale,
+    // così tutto il budget va nella risposta visibile (niente più troncamenti).
+    thinkingConfig: { thinkingBudget: 0 },
   };
 
   const safetySettings = [
@@ -132,6 +136,8 @@ export const generateRecipesWithGemini = async (
     model: MODEL_NAME,
     generationConfig: {
       temperature: 0.8,
+      maxOutputTokens: 8192,
+      thinkingConfig: { thinkingBudget: 0 },
       responseMimeType: "application/json",
     },
   });
