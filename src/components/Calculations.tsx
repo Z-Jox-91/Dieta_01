@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, Target, Settings, Percent } from 'lucide-react';
+import { Calculator, Target, Settings, Info } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { CREA_RANGES } from '../utils/mealBalance';
@@ -31,12 +31,6 @@ interface DailyCalorieLimit {
   [day: string]: number;
 }
 
-interface MealNutrientRanges {
-  carbs: { min: number; max: number };
-  proteins: { min: number; max: number };
-  fats: { min: number; max: number };
-}
-
 interface DailyMealKcal {
   [day: string]: {
     [meal: string]: number;
@@ -60,15 +54,7 @@ export const Calculations: React.FC = () => {
   const [results, setResults] = useState<Results | null>(null);
   const [isCalculated, setIsCalculated] = useState(false);
   const [dailyCalorieLimits, setDailyCalorieLimits] = useState<DailyCalorieLimit>({});
-  
-  // Nuovi stati per parametri pasti
-  // Default: range CREA/LARN per una sana alimentazione
-  const [mealRanges, setMealRanges] = useState<MealNutrientRanges>({
-    carbs: { ...CREA_RANGES.carbs },
-    proteins: { ...CREA_RANGES.proteins },
-    fats: { ...CREA_RANGES.fats }
-  });
-  
+
   const [dailyMealKcal, setDailyMealKcal] = useState<DailyMealKcal>(
     daysOfWeek.reduce((acc, day) => ({
       ...acc,
@@ -98,12 +84,11 @@ export const Calculations: React.FC = () => {
           setDailyCalorieLimits(limitsSnapshot.data() as DailyCalorieLimit);
         }
 
-        // Carica i parametri pasti
+        // Carica i parametri pasti (kcal per pasto)
         const mealParamsDoc = doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`);
         const mealParamsSnapshot = await getDoc(mealParamsDoc);
         if (mealParamsSnapshot.exists()) {
           const mealParams = mealParamsSnapshot.data();
-          if (mealParams.ranges) setMealRanges(mealParams.ranges);
           if (mealParams.dailyMealKcal) setDailyMealKcal(mealParams.dailyMealKcal);
         }
       } catch (error) {
@@ -155,26 +140,6 @@ export const Calculations: React.FC = () => {
     }
   };
 
-  const handleMealRangeChange = async (macro: keyof MealNutrientRanges, type: 'min' | 'max', value: string) => {
-    const newValue = parseInt(value) || 0;
-    const newRanges = {
-      ...mealRanges,
-      [macro]: { ...mealRanges[macro], [type]: newValue }
-    };
-    setMealRanges(newRanges);
-    
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`), {
-          ranges: newRanges,
-          dailyMealKcal
-        }, { merge: true });
-      } catch (error) {
-        console.error('Errore nel salvataggio dei range:', error);
-      }
-    }
-  };
-
   const handleMealKcalChange = async (day: string, meal: string, value: string) => {
     const newValue = parseInt(value) || 0;
     const newDailyMealKcal = {
@@ -182,11 +147,10 @@ export const Calculations: React.FC = () => {
       [day]: { ...dailyMealKcal[day], [meal]: newValue }
     };
     setDailyMealKcal(newDailyMealKcal);
-    
+
     if (auth.currentUser) {
       try {
         await setDoc(doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`), {
-          ranges: mealRanges,
           dailyMealKcal: newDailyMealKcal
         }, { merge: true });
       } catch (error) {
@@ -373,40 +337,20 @@ export const Calculations: React.FC = () => {
           </div>
           <div>
             <h2 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Parametri Calcolo Pasti</h2>
-            <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Target Macronutrienti e Calorie</p>
+            <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Target Calorico per Pasto</p>
           </div>
         </div>
 
-        {/* Range Percentuali */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          {(['carbs', 'proteins', 'fats'] as const).map((macro) => (
-            <div key={macro} className="bg-surface-container-light dark:bg-surface-container-dark p-6 rounded-md3-medium border border-sage-200 dark:border-sage-800">
-              <div className="flex items-center space-x-2 mb-4">
-                <Percent className="w-4 h-4 text-accent-500" />
-                <span className="text-sm font-black uppercase tracking-widest text-sage-700 dark:text-sage-300">
-                  {macro === 'carbs' ? 'Carboidrati' : macro === 'proteins' ? 'Proteine' : 'Lipidi'}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <input
-                  type="number"
-                  value={mealRanges[macro].min}
-                  onChange={(e) => handleMealRangeChange(macro, 'min', e.target.value)}
-                  className="md3-input w-full py-2 text-center font-bold"
-                  placeholder="Min %"
-                />
-                <span className="text-sage-400 font-bold">-</span>
-                <input
-                  type="number"
-                  value={mealRanges[macro].max}
-                  onChange={(e) => handleMealRangeChange(macro, 'max', e.target.value)}
-                  className="md3-input w-full py-2 text-center font-bold"
-                  placeholder="Max %"
-                />
-                <span className="text-sage-600 dark:text-sage-400 font-bold">%</span>
-              </div>
-            </div>
-          ))}
+        {/* Info range CREA fissi (non più modificabili dall'utente) */}
+        <div className="flex items-start space-x-3 mb-10 p-5 bg-accent-50 dark:bg-accent-900/10 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
+          <Info className="w-5 h-5 text-accent-600 dark:text-accent-400 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-sage-700 dark:text-sage-300">
+            <p className="font-bold text-sage-900 dark:text-sage-50 mb-1">Macronutrienti secondo le Linee guida CREA</p>
+            <p>
+              Carboidrati {CREA_RANGES.carbs.min}–{CREA_RANGES.carbs.max}% • Proteine {CREA_RANGES.proteins.min}–{CREA_RANGES.proteins.max}% • Lipidi {CREA_RANGES.fats.min}–{CREA_RANGES.fats.max}% dell'energia.
+              Questi range sono applicati automaticamente all'ottimizzatore e ai consigli su Dieta e Ricette: qui puoi impostare solo le kcal target per ogni pasto della settimana.
+            </p>
+          </div>
         </div>
 
         {/* Kcal per Pasto della Settimana */}

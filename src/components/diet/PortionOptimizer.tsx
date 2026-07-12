@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Target, Calculator, RefreshCw, Check, TrendingUp, Lightbulb, CheckCircle2 } from 'lucide-react';
 import { FoodMacroProfile, MacroTarget, optimizePortions, OptimizationResult } from '../../utils/portionOptimizer';
-import { CREA_TARGET, CREA_RANGES } from '../../utils/mealBalance';
+import { CREA_TARGET } from '../../utils/mealBalance';
 import { db, auth } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -28,33 +28,25 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
     fatsPercent: CREA_TARGET.fatsPercent
   });
 
-  // Carica i parametri dal database in base al giorno e al tipo di pasto
+  // Carica solo il target calorico del pasto (giorno/tipo pasto) dal database.
+  // Le percentuali di macronutrienti seguono sempre le Linee guida CREA (CREA_TARGET),
+  // non sono più personalizzabili dall'utente.
   useEffect(() => {
     const loadParams = async () => {
       if (!auth.currentUser) return;
       try {
         const mealParamsDoc = doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`);
         const snapshot = await getDoc(mealParamsDoc);
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          const mealKcal = data.dailyMealKcal?.[dayName]?.[mealType] || 500;
-          const ranges = data.ranges || CREA_RANGES;
+        const mealKcal = snapshot.exists()
+          ? (snapshot.data().dailyMealKcal?.[dayName]?.[mealType] || 500)
+          : 500;
 
-          // Punto medio dei range, normalizzato perché la somma faccia 100%
-          const mid = {
-            carbs: (ranges.carbs.min + ranges.carbs.max) / 2,
-            proteins: (ranges.proteins.min + ranges.proteins.max) / 2,
-            fats: (ranges.fats.min + ranges.fats.max) / 2
-          };
-          const sum = mid.carbs + mid.proteins + mid.fats || 100;
-
-          setTarget({
-            totalCalories: mealKcal,
-            carbsPercent: Math.round((mid.carbs / sum) * 1000) / 10,
-            proteinsPercent: Math.round((mid.proteins / sum) * 1000) / 10,
-            fatsPercent: Math.round((mid.fats / sum) * 1000) / 10
-          });
-        }
+        setTarget({
+          totalCalories: mealKcal,
+          carbsPercent: CREA_TARGET.carbsPercent,
+          proteinsPercent: CREA_TARGET.proteinsPercent,
+          fatsPercent: CREA_TARGET.fatsPercent
+        });
       } catch (e) {
         console.error("Errore caricamento parametri ottimizzatore:", e);
       }

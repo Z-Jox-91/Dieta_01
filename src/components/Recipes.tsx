@@ -68,11 +68,13 @@ export const Recipes: React.FC = () => {
         const snapshot = await getDoc(userDoc);
         if (snapshot.exists()) {
           const data = snapshot.data();
+          // Le percentuali di macronutrienti seguono sempre le Linee guida CREA:
+          // solo il totale calorico giornaliero è personalizzabile.
           setUserTarget({
             totalCalories: data.dailyCalories || 2000,
-            carbsPercent: data.preferences?.carbsPercent || CREA_TARGET.carbsPercent,
-            proteinsPercent: data.preferences?.proteinsPercent || CREA_TARGET.proteinsPercent,
-            fatsPercent: data.preferences?.fatsPercent || CREA_TARGET.fatsPercent
+            carbsPercent: CREA_TARGET.carbsPercent,
+            proteinsPercent: CREA_TARGET.proteinsPercent,
+            fatsPercent: CREA_TARGET.fatsPercent
           });
         }
       } catch (e) {

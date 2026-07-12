@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { DashboardTabId } from './config/navigation';
 
 interface User {
   name: string;
@@ -18,6 +19,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<DashboardTabId>('calculations');
 
   useEffect(() => {
     try {
@@ -174,11 +176,16 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50 dark:from-surface-dark dark:to-surface-container-dark transition-colors duration-300">
-        <Header user={user} onLogout={handleLogout} />
-        
+        <Header
+          user={user}
+          onLogout={handleLogout}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+
         <main className="container mx-auto px-4 py-8">
           {user ? (
-            <Dashboard user={user} />
+            <Dashboard user={user} activeTab={activeTab} />
           ) : (
             <Login onAuth={handleAuth} />
           )}
