@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User, LogOut, Activity, Sun, Moon } from 'lucide-react';
+import { User, LogOut, Sun, Moon } from 'lucide-react';
 import { DASHBOARD_TABS, DashboardTabId } from '../config/navigation';
+import { Logo } from './Logo';
 
 interface HeaderProps {
   user: { name: string; email: string } | null;
@@ -39,16 +40,16 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogout, activeTab, onTab
     <header className="bg-white/95 dark:bg-surface-dark/95 backdrop-blur-sm border-b border-sage-200 dark:border-sage-800 sticky top-0 z-50 shadow-sm transition-colors duration-300">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary-600 dark:bg-primary-500 rounded-xl flex items-center justify-center shadow-lg">
-              <Activity className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <div className="min-w-0">
+          <div className="flex-shrink-0 min-w-0">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <Logo className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
               <h1 className="text-lg sm:text-xl font-bold text-sage-900 dark:text-sage-50 truncate">Cunzari</h1>
-              <p className={`text-xs text-sage-600 dark:text-sage-400 hidden sm:block ${showNav ? 'lg:hidden' : ''}`}>
-                Ogni pasto, cunzato a puntino
-              </p>
             </div>
+            <p className="text-[11px] sm:text-xs text-sage-600 dark:text-sage-400 mt-0.5 pl-10 sm:pl-[52px] truncate">
+              Ogni pasto, cunzato a puntino
+            </p>
           </div>
 
           {/* Navigazione (desktop): sempre visibile nell'intestazione mentre scorri la pagina */}

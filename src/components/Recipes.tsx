@@ -9,6 +9,7 @@ import { MacroTarget } from '../utils/portionOptimizer';
 import { CREA_TARGET, evaluateMealBalance } from '../utils/mealBalance';
 import { MACRO_CARD_CLASSES, MACRO_LABELS } from '../config/macroColors';
 import { MacroDonut } from './diet/MacroDonut';
+import { MacroIcon } from './diet/MacroIcons';
 import { useToast } from './ui/ToastProvider';
 import { useConfirm } from './ui/ConfirmProvider';
 
@@ -576,7 +577,10 @@ export const Recipes: React.FC = () => {
                     return (
                       <div key={macro} className={`p-3 rounded-md3-medium text-center border ${c.bg} ${c.border}`}>
                         <div className={`text-lg font-black ${c.textStrong}`}>{Math.round(grams)}g</div>
-                        <div className={`text-[9px] font-bold uppercase tracking-widest ${c.text}`}>{MACRO_LABELS[macro]}</div>
+                        <div className={`flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-widest ${c.text}`}>
+                          <MacroIcon macro={macro} className="w-3 h-3 flex-shrink-0" />
+                          {MACRO_LABELS[macro]}
+                        </div>
                       </div>
                     );
                   })}

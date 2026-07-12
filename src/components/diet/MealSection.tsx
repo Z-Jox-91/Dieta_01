@@ -3,6 +3,7 @@ import { Plus, Trash2, ChevronDown, ChevronUp, Scale, CheckCircle2, AlertTriangl
 import { FoodAutocomplete, FoodOption } from './FoodAutocomplete';
 import { PortionOptimizer } from './PortionOptimizer';
 import { MacroDonut } from './MacroDonut';
+import { MacroIcon } from './MacroIcons';
 import { FoodMacroProfile, OptimizationResult } from '../../utils/portionOptimizer';
 import { evaluateMealBalance } from '../../utils/mealBalance';
 import { MACRO_CARD_CLASSES, MACRO_LABELS } from '../../config/macroColors';
@@ -309,7 +310,10 @@ export const MealSection: React.FC<MealSectionProps> = ({
                       {ev.status !== 'ok' && (
                         <AlertTriangle className="absolute top-3 right-3 w-4 h-4 text-orange-500" />
                       )}
-                      <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${c.textStrong}`}>{MACRO_LABELS[ev.macro]}</p>
+                      <p className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest mb-1 ${c.textStrong}`}>
+                        <MacroIcon macro={ev.macro} className="w-3.5 h-3.5 flex-shrink-0" />
+                        {MACRO_LABELS[ev.macro]}
+                      </p>
                       <p className="text-xl font-black text-sage-900 dark:text-sage-50">{grams.toFixed(1)} <span className="text-xs">g</span></p>
                       <p className={`text-[10px] font-bold ${c.text}`}>{ev.percent.toFixed(0)}% (CREA: {ev.range.min}–{ev.range.max}%)</p>
                     </div>

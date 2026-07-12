@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight, User } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface LoginProps {
   onAuth: (
@@ -105,8 +106,8 @@ export const Login: React.FC<LoginProps> = ({ onAuth }) => {
     <div className="max-w-md mx-auto mt-8 sm:mt-16 animate-fade-in px-4 sm:px-0">
       <div className="md3-card p-6 sm:p-10 border border-sage-200 dark:border-sage-800">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-primary-600 dark:bg-primary-500 rounded-md3-medium mx-auto mb-6 flex items-center justify-center shadow-md3-3">
-            <Lock className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 bg-primary-500 rounded-md3-medium mx-auto mb-6 flex items-center justify-center shadow-md3-3">
+            <Logo className="w-12 h-12" />
           </div>
           <h2 className="text-3xl font-black text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Cunzari</h2>
           <p className="text-sage-600 dark:text-sage-400 font-medium">Ogni pasto, cunzato a puntino</p>
