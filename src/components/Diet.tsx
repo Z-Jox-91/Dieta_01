@@ -6,6 +6,7 @@ import { DayStats } from './diet/DayStats';
 import { db, auth } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { CREA_RANGES, FOOD_EXAMPLES } from '../utils/mealBalance';
+import { Skeleton } from './ui/Skeleton';
 
 // Definizione delle interfacce per i dati
 interface MealItem {
@@ -38,11 +39,12 @@ export const Diet: React.FC = () => {
   const [currentWeek, setCurrentWeek] = useState(0);
   const [mealsData, setMealsData] = useState<MealsDataStore>({});
   const [showGuide, setShowGuide] = useState(false);
+  const [isLoadingMeals, setIsLoadingMeals] = useState(true);
 
   useEffect(() => {
     const loadMealsData = async () => {
       if (!auth.currentUser) return;
-      
+
       try {
         // Prima controlla se ci sono dati in localStorage da migrare
         const saved = localStorage.getItem('piano_alimentare_meals');
@@ -75,9 +77,11 @@ export const Diet: React.FC = () => {
         console.error('Errore nel caricamento dei dati da Firestore:', error);
         // In caso di errore, inizializza con un oggetto vuoto
         setMealsData({});
+      } finally {
+        setIsLoadingMeals(false);
       }
     };
-    
+
     loadMealsData();
   }, []);
 
@@ -278,40 +282,51 @@ export const Diet: React.FC = () => {
 
       {/* Meals */}
       <div className="space-y-6">
-        <MealSection
-          title="Colazione"
-          mealData={getCurrentDayData().breakfast}
-          onUpdate={(data) => updateDayData({ ...getCurrentDayData(), breakfast: data })}
-          dayName={daysOfWeek[selectedDay]}
-        />
-        
-        <MealSection
-          title="Spuntino1"
-          mealData={getCurrentDayData().morningSnack}
-          onUpdate={(data) => updateDayData({ ...getCurrentDayData(), morningSnack: data })}
-          dayName={daysOfWeek[selectedDay]}
-        />
-        
-        <MealSection
-          title="Pranzo"
-          mealData={getCurrentDayData().lunch}
-          onUpdate={(data) => updateDayData({ ...getCurrentDayData(), lunch: data })}
-          dayName={daysOfWeek[selectedDay]}
-        />
-        
-        <MealSection
-          title="Spuntino2"
-          mealData={getCurrentDayData().afternoonSnack}
-          onUpdate={(data) => updateDayData({ ...getCurrentDayData(), afternoonSnack: data })}
-          dayName={daysOfWeek[selectedDay]}
-        />
-        
-        <MealSection
-          title="Cena"
-          mealData={getCurrentDayData().dinner}
-          onUpdate={(data) => updateDayData({ ...getCurrentDayData(), dinner: data })}
-          dayName={daysOfWeek[selectedDay]}
-        />
+        {isLoadingMeals ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="md3-card border border-sage-200 dark:border-sage-800 shadow-none p-6 space-y-3">
+              <Skeleton className="h-6 w-1/4" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ))
+        ) : (
+          <>
+            <MealSection
+              title="Colazione"
+              mealData={getCurrentDayData().breakfast}
+              onUpdate={(data) => updateDayData({ ...getCurrentDayData(), breakfast: data })}
+              dayName={daysOfWeek[selectedDay]}
+            />
+
+            <MealSection
+              title="Spuntino1"
+              mealData={getCurrentDayData().morningSnack}
+              onUpdate={(data) => updateDayData({ ...getCurrentDayData(), morningSnack: data })}
+              dayName={daysOfWeek[selectedDay]}
+            />
+
+            <MealSection
+              title="Pranzo"
+              mealData={getCurrentDayData().lunch}
+              onUpdate={(data) => updateDayData({ ...getCurrentDayData(), lunch: data })}
+              dayName={daysOfWeek[selectedDay]}
+            />
+
+            <MealSection
+              title="Spuntino2"
+              mealData={getCurrentDayData().afternoonSnack}
+              onUpdate={(data) => updateDayData({ ...getCurrentDayData(), afternoonSnack: data })}
+              dayName={daysOfWeek[selectedDay]}
+            />
+
+            <MealSection
+              title="Cena"
+              mealData={getCurrentDayData().dinner}
+              onUpdate={(data) => updateDayData({ ...getCurrentDayData(), dinner: data })}
+              dayName={daysOfWeek[selectedDay]}
+            />
+          </>
+        )}
       </div>
     </div>
   );

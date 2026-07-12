@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, Scale, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { FoodAutocomplete, FoodOption } from './FoodAutocomplete';
 import { PortionOptimizer } from './PortionOptimizer';
+import { MacroDonut } from './MacroDonut';
 import { FoodMacroProfile, OptimizationResult } from '../../utils/portionOptimizer';
 import { evaluateMealBalance } from '../../utils/mealBalance';
+import { MACRO_CARD_CLASSES, MACRO_LABELS } from '../../config/macroColors';
 
 interface MealItem {
   id: string;
@@ -286,32 +288,34 @@ export const MealSection: React.FC<MealSectionProps> = ({
             <span className="uppercase tracking-widest text-xs">Aggiungi Alimento</span>
           </button>
 
-          {/* Meal Summary Cards */}
+          {/* Meal Summary: ciambella + card macro con colori fissi */}
           {totals.calories > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <div className="bg-primary-50 dark:bg-primary-900/10 p-4 rounded-md3-small border border-primary-100 dark:border-primary-800/30">
-                <p className="text-[10px] font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-1">Calorie</p>
-                <p className="text-xl font-black text-sage-900 dark:text-sage-50">{Math.round(totals.calories)} <span className="text-xs">kcal</span></p>
+            <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-6 items-center mb-8">
+              <div className="flex justify-center">
+                <MacroDonut
+                  carbsPercent={balance.evaluations.find(e => e.macro === 'carbs')?.percent || 0}
+                  proteinsPercent={balance.evaluations.find(e => e.macro === 'proteins')?.percent || 0}
+                  fatsPercent={balance.evaluations.find(e => e.macro === 'fats')?.percent || 0}
+                  centerLabel={`${Math.round(totals.calories)}`}
+                  centerSubLabel="kcal"
+                />
               </div>
-              {balance.evaluations.map(ev => (
-                <div key={ev.macro} className={`p-4 rounded-md3-small border ${
-                  ev.status === 'ok'
-                    ? 'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-800/30'
-                    : 'bg-orange-50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-800/30'
-                }`}>
-                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${
-                    ev.status === 'ok' ? 'text-green-700 dark:text-green-300' : 'text-orange-700 dark:text-orange-300'
-                  }`}>
-                    {ev.macro === 'carbs' ? 'Carboidrati' : ev.macro === 'proteins' ? 'Proteine' : 'Lipidi'}
-                  </p>
-                  <p className="text-xl font-black text-sage-900 dark:text-sage-50">
-                    {(ev.macro === 'carbs' ? totals.carbs : ev.macro === 'proteins' ? totals.proteins : totals.fats).toFixed(1)} <span className="text-xs">g</span>
-                  </p>
-                  <p className={`text-[10px] font-bold ${ev.status === 'ok' ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
-                    {ev.percent.toFixed(0)}% (CREA: {ev.range.min}–{ev.range.max}%)
-                  </p>
-                </div>
-              ))}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {balance.evaluations.map(ev => {
+                  const c = MACRO_CARD_CLASSES[ev.macro];
+                  const grams = ev.macro === 'carbs' ? totals.carbs : ev.macro === 'proteins' ? totals.proteins : totals.fats;
+                  return (
+                    <div key={ev.macro} className={`relative p-4 rounded-md3-small border ${c.bg} ${c.border}`}>
+                      {ev.status !== 'ok' && (
+                        <AlertTriangle className="absolute top-3 right-3 w-4 h-4 text-orange-500" />
+                      )}
+                      <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${c.textStrong}`}>{MACRO_LABELS[ev.macro]}</p>
+                      <p className="text-xl font-black text-sage-900 dark:text-sage-50">{grams.toFixed(1)} <span className="text-xs">g</span></p>
+                      <p className={`text-[10px] font-bold ${c.text}`}>{ev.percent.toFixed(0)}% (CREA: {ev.range.min}–{ev.range.max}%)</p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

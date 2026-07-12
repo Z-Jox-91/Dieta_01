@@ -3,6 +3,9 @@ import { Plus, Upload, Trash2, Edit3, Save, X, CheckCircle } from 'lucide-react'
 import * as XLSX from 'xlsx';
 import { db, auth } from '../firebase';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { useToast } from './ui/ToastProvider';
+import { useConfirm } from './ui/ConfirmProvider';
+import { Skeleton, SkeletonTableRows } from './ui/Skeleton';
 
 export interface FoodItem {
   id: string;
@@ -27,6 +30,8 @@ interface NewFoodForm {
 }
 
 export const Foods: React.FC = () => {
+  const { showToast } = useToast();
+  const confirm = useConfirm();
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -47,6 +52,7 @@ export const Foods: React.FC = () => {
     unit: 'g'
   });
   const [isExcelLoaded, setIsExcelLoaded] = useState(false);
+  const [isLoadingFoods, setIsLoadingFoods] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<'all' | 'CRB' | 'PRT' | 'LPD'>('all');
 
@@ -64,8 +70,10 @@ export const Foods: React.FC = () => {
       })) as FoodItem[];
       setFoods(foodsList);
       if (foodsList.length > 0) setIsExcelLoaded(true);
+      setIsLoadingFoods(false);
     }, (error) => {
       console.error('Errore nel caricamento del database alimentare:', error);
+      setIsLoadingFoods(false);
     });
 
     // Migrazione legacy se necessaria
@@ -168,10 +176,10 @@ export const Foods: React.FC = () => {
         });
       }
 
-      alert(`Database alimentare caricato con successo!`);
+      showToast('Database alimentare caricato con successo!', 'success');
     } catch (error) {
       console.error('Errore durante l\'elaborazione del file Excel:', error);
-      alert('Errore durante l\'elaborazione del file Excel.');
+      showToast('Errore durante l\'elaborazione del file Excel.', 'error');
     }
 
     e.target.value = '';
@@ -180,7 +188,7 @@ export const Foods: React.FC = () => {
   // Aggiunge un nuovo alimento
   const handleAddFood = async () => {
     if (!newFood.name.trim() || !auth.currentUser) {
-      alert('Il nome dell\'alimento è obbligatorio');
+      showToast('Il nome dell\'alimento è obbligatorio', 'error');
       return;
     }
 
@@ -202,27 +210,35 @@ export const Foods: React.FC = () => {
 
       setNewFood({ name: '', calories: 0, carbs: 0, proteins: 0, fats: 0, unit: 'g' });
       setIsAddingNew(false);
+      showToast('Alimento aggiunto al database.', 'success');
     } catch (error) {
       console.error('Errore aggiunta alimento:', error);
-      alert('Errore durante il salvataggio.');
+      showToast('Errore durante il salvataggio.', 'error');
     }
   };
 
   // Elimina un alimento
   const handleDeleteFood = async (food: FoodItem) => {
     if (!auth.currentUser) return;
-    
+
     if (food.creatorId !== auth.currentUser.uid) {
-      alert('Puoi eliminare solo gli alimenti creati da te.');
+      showToast('Puoi eliminare solo gli alimenti creati da te.', 'error');
       return;
     }
 
-    if (confirm('Sei sicuro di voler eliminare questo alimento?')) {
+    const ok = await confirm({
+      title: 'Eliminare questo alimento?',
+      message: `"${food.name}" verrà rimosso dal database condiviso. L'azione non può essere annullata.`,
+      confirmLabel: 'Elimina',
+      danger: true,
+    });
+    if (ok) {
       try {
         await deleteDoc(doc(db, 'alimenti', food.id));
+        showToast('Alimento eliminato.', 'success');
       } catch (error) {
         console.error('Errore eliminazione:', error);
-        alert('Errore durante l\'eliminazione.');
+        showToast('Errore durante l\'eliminazione.', 'error');
       }
     }
   };
@@ -230,7 +246,7 @@ export const Foods: React.FC = () => {
   // Inizia la modifica di un alimento
   const startEditing = (food: FoodItem) => {
     if (food.creatorId !== auth.currentUser?.uid) {
-      alert('Puoi modificare solo gli alimenti creati da te.');
+      showToast('Puoi modificare solo gli alimenti creati da te.', 'error');
       return;
     }
     setEditingId(food.id);
@@ -263,9 +279,10 @@ export const Foods: React.FC = () => {
       }, { merge: true });
 
       setEditingId(null);
+      showToast('Modifiche salvate.', 'success');
     } catch (error) {
       console.error('Errore modifica:', error);
-      alert('Errore durante il salvataggio.');
+      showToast('Errore durante il salvataggio.', 'error');
     }
   };
 
@@ -494,7 +511,9 @@ export const Foods: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredFoods.map((food, index) => (
+              {isLoadingFoods ? (
+                <SkeletonTableRows rows={6} columns={8} />
+              ) : filteredFoods.map((food, index) => (
                 <tr key={food.id} className={`md3-table-tr ${index % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
                   <td className="md3-table-td font-medium">
                     {editingId === food.id ? (
@@ -644,7 +663,19 @@ export const Foods: React.FC = () => {
 
         {/* Layout a card per mobile e tablet */}
         <div className="lg:hidden space-y-4 p-4">
-          {filteredFoods.map((food) => (
+          {isLoadingFoods ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-surface-container-dark rounded-md3-medium border border-sage-200 dark:border-sage-800 p-4 space-y-3">
+                <Skeleton className="h-5 w-1/2" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              </div>
+            ))
+          ) : filteredFoods.map((food) => (
             <div key={food.id} className="bg-white dark:bg-surface-container-dark rounded-md3-medium border border-sage-200 dark:border-sage-800 p-4 shadow-sm">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex-1">
@@ -787,7 +818,7 @@ export const Foods: React.FC = () => {
           ))}
         </div>
         
-        {filteredFoods.length === 0 && (
+        {!isLoadingFoods && filteredFoods.length === 0 && (
           <div className="text-center py-8 text-sage-500">
             {foods.length === 0 ? 'Nessun alimento presente. Carica un file Excel o aggiungi manualmente.' : 'Nessun alimento trovato con i filtri selezionati.'}
           </div>

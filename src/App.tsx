@@ -4,6 +4,8 @@ import { Dashboard } from './components/Dashboard';
 import { Login } from './components/Login';
 import { AIAssistant } from './components/AIAssistant';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ToastProvider } from './components/ui/ToastProvider';
+import { ConfirmProvider } from './components/ui/ConfirmProvider';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -175,23 +177,27 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50 dark:from-surface-dark dark:to-surface-container-dark transition-colors duration-300">
-        <Header
-          user={user}
-          onLogout={handleLogout}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
+      <ToastProvider>
+        <ConfirmProvider>
+          <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50 dark:from-surface-dark dark:to-surface-container-dark transition-colors duration-300">
+            <Header
+              user={user}
+              onLogout={handleLogout}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
 
-        <main className="container mx-auto px-4 py-8">
-          {user ? (
-            <Dashboard user={user} activeTab={activeTab} />
-          ) : (
-            <Login onAuth={handleAuth} />
-          )}
-        </main>
-        <AIAssistant />
-      </div>
+            <main className="container mx-auto px-4 py-8">
+              {user ? (
+                <Dashboard user={user} activeTab={activeTab} onTabChange={setActiveTab} />
+              ) : (
+                <Login onAuth={handleAuth} />
+              )}
+            </main>
+            <AIAssistant />
+          </div>
+        </ConfirmProvider>
+      </ToastProvider>
     </ErrorBoundary>
   );
 }

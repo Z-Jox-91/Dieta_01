@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, Target, Settings, Info } from 'lucide-react';
+import { Calculator, Target, Settings, Info, ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { CREA_RANGES } from '../utils/mealBalance';
@@ -37,10 +37,53 @@ interface DailyMealKcal {
   };
 }
 
+type SectionId = 'personal' | 'results' | 'weekly' | 'meals';
+
 const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 const mealTypes = ['Colazione', 'Pranzo', 'Cena', 'Spuntino1', 'Spuntino2'];
 
+interface AccordionSectionProps {
+  step: number;
+  icon: React.ElementType;
+  title: string;
+  subtitle: string;
+  isOpen: boolean;
+  locked?: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+const AccordionSection: React.FC<AccordionSectionProps> = ({ step, icon: Icon, title, subtitle, isOpen, locked, onToggle, children }) => (
+  <div className="md3-card border border-sage-200 dark:border-sage-800 shadow-none overflow-hidden">
+    <button
+      onClick={onToggle}
+      className="w-full p-5 sm:p-6 flex items-center justify-between text-left hover:bg-sage-50/50 dark:hover:bg-surface-container-dark/50 transition-colors duration-200"
+    >
+      <div className="flex items-center space-x-4">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+          isOpen ? 'bg-primary-600 dark:bg-primary-500 text-white' : 'bg-sage-100 dark:bg-surface-container-dark text-sage-500 dark:text-sage-400'
+        }`}>
+          {locked ? <Lock className="w-4 h-4" /> : <Icon className="w-5 h-5" />}
+        </div>
+        <div>
+          <p className="font-black text-sage-900 dark:text-sage-50 mb-0 flex items-center gap-2">
+            <span className="text-xs text-sage-400 dark:text-sage-500">{step}</span> {title}
+          </p>
+          <p className="text-xs text-sage-500 dark:text-sage-400">{subtitle}</p>
+        </div>
+      </div>
+      {isOpen ? <ChevronUp className="w-5 h-5 text-sage-400 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 text-sage-400 flex-shrink-0" />}
+    </button>
+    {isOpen && (
+      <div className="p-5 sm:p-8 pt-0 sm:pt-2 border-t border-sage-100 dark:border-sage-800 animate-slide-up">
+        {children}
+      </div>
+    )}
+  </div>
+);
+
 export const Calculations: React.FC = () => {
+  const [activeSection, setActiveSection] = useState<SectionId | null>('personal');
   const [data, setData] = useState<CalculationData>({
     age: 0,
     height: 0,
@@ -65,7 +108,7 @@ export const Calculations: React.FC = () => {
   useEffect(() => {
     const loadCalculationsData = async () => {
       if (!auth.currentUser) return;
-      
+
       try {
         // Carica i calcoli
         const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
@@ -75,8 +118,9 @@ export const Calculations: React.FC = () => {
           setData(calculationsData.data);
           setResults(calculationsData.results);
           setIsCalculated(true);
+          setActiveSection('results');
         }
-        
+
         // Carica i limiti di calorie giornalieri
         const limitsDoc = doc(db, `users/${auth.currentUser.uid}/data/daily_limits`);
         const limitsSnapshot = await getDoc(limitsDoc);
@@ -95,7 +139,7 @@ export const Calculations: React.FC = () => {
         console.error('Errore nel caricamento dei dati da Firestore:', error);
       }
     };
-    
+
     loadCalculationsData();
   }, []);
 
@@ -103,18 +147,18 @@ export const Calculations: React.FC = () => {
     const heightM = data.height / 100;
     const bmi = data.weight / (heightM * heightM);
     const idealWeight = 21.5 * (heightM * heightM);
-    
+
     const basalMetabolism = data.gender === 'female'
       ? 655 + (9.5 * idealWeight) + (1.8 * data.height) - (4.6 * data.age)
       : 66.5 + (13.75 * idealWeight) + (5 * data.height) - (6.75 * data.age);
-    
+
     const dailyMetabolism = basalMetabolism * data.laf;
     const weeklyMetabolism = dailyMetabolism * 7;
-    
+
     const dailyDeficit = data.dailyDeficit || 0;
     const weeklyDeficit = dailyDeficit * 7;
     const weeklyCalories = weeklyMetabolism - weeklyDeficit;
-    
+
     const dailyProteinRda = idealWeight * data.y;
     const weeklyProteinRda = dailyProteinRda * 7;
 
@@ -128,7 +172,8 @@ export const Calculations: React.FC = () => {
     const newResults = calculateResults();
     setResults(newResults);
     setIsCalculated(true);
-    
+    setActiveSection('results');
+
     if (auth.currentUser) {
       try {
         await setDoc(doc(db, `users/${auth.currentUser.uid}/data/calculations`), {
@@ -163,7 +208,7 @@ export const Calculations: React.FC = () => {
     const newLimits = { ...dailyCalorieLimits };
     newLimits[day] = parseInt(value) || 0;
     setDailyCalorieLimits(newLimits);
-    
+
     if (auth.currentUser) {
       try {
         await setDoc(doc(db, `users/${auth.currentUser.uid}/data/daily_limits`), newLimits);
@@ -188,20 +233,20 @@ export const Calculations: React.FC = () => {
     return "Obesità di classe III";
   };
 
-  return (
-    <div className="space-y-6 sm:space-y-10">
-      {/* Input Form Dati Personali */}
-      <div className="md3-card p-6 sm:p-10 border border-sage-200 dark:border-sage-800">
-        <div className="flex items-center space-x-4 mb-8">
-          <div className="w-12 h-12 bg-primary-600 dark:bg-primary-500 rounded-md3-medium flex items-center justify-center shadow-md3-2">
-            <Calculator className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Dati Personali</h2>
-            <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Parametri Biometrici</p>
-          </div>
-        </div>
+  const toggleSection = (id: SectionId) => {
+    setActiveSection(prev => (prev === id ? null : id));
+  };
 
+  return (
+    <div className="space-y-4">
+      <AccordionSection
+        step={1}
+        icon={Calculator}
+        title="Dati Personali"
+        subtitle="Età, altezza, peso, LAF: il punto di partenza del calcolo"
+        isOpen={activeSection === 'personal'}
+        onToggle={() => toggleSection('personal')}
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-2">
             <label className="block text-sm font-bold text-sage-700 dark:text-sage-300 ml-1">Età</label>
@@ -235,28 +280,25 @@ export const Calculations: React.FC = () => {
             <input type="number" value={data.dailyDeficit || ''} onChange={(e) => setData({...data, dailyDeficit: parseInt(e.target.value) || 0})} className="md3-input w-full" />
           </div>
         </div>
-        
+
         <div className="mt-10">
           <button onClick={handleCalculate} disabled={!isFormValid} className={`md3-button-primary w-full sm:w-auto flex items-center justify-center space-x-2 ${!isFormValid ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}>
             <Calculator className="w-5 h-5" />
             <span>Calcola Risultati</span>
           </button>
         </div>
-      </div>
+      </AccordionSection>
 
-      {/* Results Section (BMI, MB, TDEE, etc) - SPOSTATO SOPRA */}
-      {isCalculated && results && (
-        <div className="md3-card p-6 sm:p-10 border border-primary-100 dark:border-primary-900/30">
-          <div className="flex items-center space-x-4 mb-8">
-            <div className="w-12 h-12 bg-primary-600 rounded-md3-medium flex items-center justify-center shadow-md3-2">
-              <Target className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Risultati Analisi</h3>
-              <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Metabolismo e Target</p>
-            </div>
-          </div>
-
+      <AccordionSection
+        step={2}
+        icon={Target}
+        title="Risultati Analisi"
+        subtitle={isCalculated ? 'Metabolismo e target' : 'Calcola prima i tuoi dati personali'}
+        isOpen={activeSection === 'results'}
+        locked={!isCalculated}
+        onToggle={() => toggleSection('results')}
+      >
+        {isCalculated && results ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
               <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">BMI (Indice Massa Corporea)</p>
@@ -284,65 +326,70 @@ export const Calculations: React.FC = () => {
               <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.dailyProteinRda.toFixed(1)} <span className="text-lg">g</span></p>
             </div>
           </div>
-          
-          {/* Pianificazione Settimanale Kcal Totali */}
-          <div className="mt-10 md3-card bg-surface-container-light dark:bg-surface-container-dark p-6 sm:p-8 border border-sage-200 dark:border-sage-800 shadow-none">
-            <h3 className="text-xl font-black text-sage-900 dark:text-sage-50 mb-6 flex items-center">
-              <Target className="w-6 h-6 text-primary-600 dark:text-primary-400 mr-3" />
-              Pianificazione Settimanale Totale
-            </h3>
-            <div className="md3-table-container">
-              <table className="md3-table">
-                <thead className="md3-table-header">
-                  <tr>
-                    <th className="md3-table-th">Giorno</th>
-                    <th className="md3-table-th">Target Kcal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {daysOfWeek.map((day, idx) => (
-                    <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
-                      <td className="md3-table-td font-bold">{day}</td>
-                      <td className="md3-table-td">
-                        <input
-                          type="number"
-                          value={dailyCalorieLimits[day] || ''}
-                          onChange={(e) => handleDailyLimitChange(day, e.target.value)}
-                          className="md3-input w-full max-w-[150px] py-2 font-bold"
-                          placeholder="Kcal"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                  <tr className="bg-primary-50 dark:bg-primary-900/20 font-bold">
-                    <td className="md3-table-td text-primary-900 dark:text-primary-100">Totale Settimanale Effettivo</td>
-                    <td className="md3-table-td text-primary-900 dark:text-primary-100 font-black text-xl">{getTotalWeeklyLimit()} <span className="text-sm">kcal</span></td>
-                  </tr>
-                  <tr className="bg-accent-50 dark:bg-accent-900/20 font-bold">
-                    <td className="md3-table-td text-accent-900 dark:text-accent-100">Calcolo Teorico</td>
-                    <td className="md3-table-td text-accent-900 dark:text-accent-100 font-black text-xl">{Math.round(results.weeklyCalories)} <span className="text-sm">kcal</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-sm text-sage-500 dark:text-sage-400">Compila la sezione "Dati Personali" e premi "Calcola Risultati" per vedere qui BMI, metabolismo e target proteico.</p>
+        )}
+      </AccordionSection>
 
-      {/* Pannello Parametri di Calcolo Pasti - SPOSTATO SOTTO */}
-      <div className="md3-card p-6 sm:p-10 border border-accent-200 dark:border-accent-800/30">
-        <div className="flex items-center space-x-4 mb-8">
-          <div className="w-12 h-12 bg-accent-500 rounded-md3-medium flex items-center justify-center shadow-md3-2">
-            <Settings className="w-6 h-6 text-white" />
+      <AccordionSection
+        step={3}
+        icon={Target}
+        title="Pianificazione Settimanale"
+        subtitle={isCalculated ? 'Target kcal per ogni giorno della settimana' : 'Calcola prima i tuoi dati personali'}
+        isOpen={activeSection === 'weekly'}
+        locked={!isCalculated}
+        onToggle={() => toggleSection('weekly')}
+      >
+        {isCalculated && results ? (
+          <div className="md3-table-container">
+            <table className="md3-table">
+              <thead className="md3-table-header">
+                <tr>
+                  <th className="md3-table-th">Giorno</th>
+                  <th className="md3-table-th">Target Kcal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {daysOfWeek.map((day, idx) => (
+                  <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
+                    <td className="md3-table-td font-bold">{day}</td>
+                    <td className="md3-table-td">
+                      <input
+                        type="number"
+                        value={dailyCalorieLimits[day] || ''}
+                        onChange={(e) => handleDailyLimitChange(day, e.target.value)}
+                        className="md3-input w-full max-w-[150px] py-2 font-bold"
+                        placeholder="Kcal"
+                      />
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-primary-50 dark:bg-primary-900/20 font-bold">
+                  <td className="md3-table-td text-primary-900 dark:text-primary-100">Totale Settimanale Effettivo</td>
+                  <td className="md3-table-td text-primary-900 dark:text-primary-100 font-black text-xl">{getTotalWeeklyLimit()} <span className="text-sm">kcal</span></td>
+                </tr>
+                <tr className="bg-accent-50 dark:bg-accent-900/20 font-bold">
+                  <td className="md3-table-td text-accent-900 dark:text-accent-100">Calcolo Teorico</td>
+                  <td className="md3-table-td text-accent-900 dark:text-accent-100 font-black text-xl">{Math.round(results.weeklyCalories)} <span className="text-sm">kcal</span></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div>
-            <h2 className="text-2xl font-black text-sage-900 dark:text-sage-50 tracking-tight">Parametri Calcolo Pasti</h2>
-            <p className="text-sm text-sage-500 font-medium uppercase tracking-wider">Target Calorico per Pasto</p>
-          </div>
-        </div>
+        ) : (
+          <p className="text-sm text-sage-500 dark:text-sage-400">Compila la sezione "Dati Personali" per impostare qui i target di calorie giornalieri.</p>
+        )}
+      </AccordionSection>
 
+      <AccordionSection
+        step={4}
+        icon={Settings}
+        title="Kcal per Pasto"
+        subtitle="Target calorico per ogni pasto della settimana"
+        isOpen={activeSection === 'meals'}
+        onToggle={() => toggleSection('meals')}
+      >
         {/* Info range CREA fissi (non più modificabili dall'utente) */}
-        <div className="flex items-start space-x-3 mb-10 p-5 bg-accent-50 dark:bg-accent-900/10 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
+        <div className="flex items-start space-x-3 mb-8 p-5 bg-accent-50 dark:bg-accent-900/10 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
           <Info className="w-5 h-5 text-accent-600 dark:text-accent-400 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-sage-700 dark:text-sage-300">
             <p className="font-bold text-sage-900 dark:text-sage-50 mb-1">Macronutrienti secondo le Linee guida CREA</p>
@@ -353,7 +400,6 @@ export const Calculations: React.FC = () => {
           </div>
         </div>
 
-        {/* Kcal per Pasto della Settimana */}
         <div className="md3-table-container">
           <div className="overflow-x-auto">
             <table className="md3-table">
@@ -384,7 +430,7 @@ export const Calculations: React.FC = () => {
             </table>
           </div>
         </div>
-      </div>
+      </AccordionSection>
     </div>
   );
 };

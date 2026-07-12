@@ -7,6 +7,10 @@ import { collection, doc, getDocs, setDoc, deleteDoc, getDoc } from 'firebase/fi
 import { generateRecipesWithGemini, RecipeSuggestion } from '../utils/gemini';
 import { MacroTarget } from '../utils/portionOptimizer';
 import { CREA_TARGET, evaluateMealBalance } from '../utils/mealBalance';
+import { MACRO_CARD_CLASSES, MACRO_LABELS } from '../config/macroColors';
+import { MacroDonut } from './diet/MacroDonut';
+import { useToast } from './ui/ToastProvider';
+import { useConfirm } from './ui/ConfirmProvider';
 
 interface RecipeItem {
   id: string;
@@ -44,6 +48,8 @@ const getBaseValues = (item: RecipeItem) => {
 };
 
 export const Recipes: React.FC = () => {
+  const { showToast } = useToast();
+  const confirm = useConfirm();
   const [recipes, setRecipes] = useState<Record<string, Recipe>>({});
   const [currentRecipe, setCurrentRecipe] = useState<string>('Nuova Ricetta');
   const [ingredients, setIngredients] = useState<RecipeItem[]>([]);
@@ -132,7 +138,7 @@ export const Recipes: React.FC = () => {
       .map(i => i.food);
 
     if (ingredientNames.length === 0) {
-      alert("Aggiungi almeno un ingrediente per generare ricette con l'AI.");
+      showToast("Aggiungi almeno un ingrediente per generare ricette con l'AI.", 'error');
       return;
     }
 
@@ -149,7 +155,7 @@ export const Recipes: React.FC = () => {
       setAiSuggestions(suggestions);
     } catch (error: any) {
       console.error(error);
-      alert("Errore durante la generazione delle ricette: " + error.message);
+      showToast("Errore durante la generazione delle ricette: " + error.message, 'error');
       setShowAiModal(false);
     } finally {
       setIsGenerating(false);
@@ -317,7 +323,13 @@ export const Recipes: React.FC = () => {
   const deleteRecipe = async (recipeName: string) => {
     if (!recipeName || recipeName === 'Nuova Ricetta') return;
 
-    if (confirm(`Sei sicuro di voler eliminare la ricetta "${recipeName}"?`)) {
+    const ok = await confirm({
+      title: 'Eliminare questa ricetta?',
+      message: `"${recipeName}" verrà rimossa. L'azione non può essere annullata.`,
+      confirmLabel: 'Elimina',
+      danger: true,
+    });
+    if (ok) {
       try {
         if (auth.currentUser) {
           const recipeRef = doc(db, `users/${auth.currentUser.uid}/recipes/${recipeName}`);
@@ -338,8 +350,10 @@ export const Recipes: React.FC = () => {
             setIngredients([]);
           }
         }
+        showToast('Ricetta eliminata.', 'success');
       } catch (error) {
         console.error('Errore nell\'eliminazione della ricetta da Firestore:', error);
+        showToast('Errore durante l\'eliminazione della ricetta.', 'error');
       }
     }
   };
@@ -547,22 +561,25 @@ export const Recipes: React.FC = () => {
             </h3>
 
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-primary-50 dark:bg-primary-900/20 p-4 rounded-md3-medium text-center">
-                  <div className="text-2xl font-black text-primary-700 dark:text-primary-300">{Math.round(totals.calories)}</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-primary-600/60 dark:text-primary-400/60">Calorie</div>
-                </div>
-                <div className="bg-accent-50 dark:bg-accent-900/20 p-4 rounded-md3-medium text-center">
-                  <div className="text-2xl font-black text-accent-700 dark:text-accent-300">{Math.round(totals.proteins)}g</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-accent-600/60 dark:text-accent-400/60">Proteine</div>
-                </div>
-                <div className="bg-primary-50 dark:bg-primary-900/20 p-4 rounded-md3-medium text-center">
-                  <div className="text-2xl font-black text-primary-700 dark:text-primary-300">{Math.round(totals.carbs)}g</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-primary-600/60 dark:text-primary-400/60">Carboidrati</div>
-                </div>
-                <div className="bg-accent-50 dark:bg-accent-900/20 p-4 rounded-md3-medium text-center">
-                  <div className="text-2xl font-black text-accent-700 dark:text-accent-300">{Math.round(totals.fats)}g</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-accent-600/60 dark:text-accent-400/60">Lipidi</div>
+              <div className="flex flex-col items-center gap-4">
+                <MacroDonut
+                  carbsPercent={balance.evaluations.find(e => e.macro === 'carbs')?.percent || 0}
+                  proteinsPercent={balance.evaluations.find(e => e.macro === 'proteins')?.percent || 0}
+                  fatsPercent={balance.evaluations.find(e => e.macro === 'fats')?.percent || 0}
+                  centerLabel={`${Math.round(totals.calories)}`}
+                  centerSubLabel="kcal"
+                />
+                <div className="grid grid-cols-3 gap-3 w-full">
+                  {(['carbs', 'proteins', 'fats'] as const).map(macro => {
+                    const c = MACRO_CARD_CLASSES[macro];
+                    const grams = macro === 'carbs' ? totals.carbs : macro === 'proteins' ? totals.proteins : totals.fats;
+                    return (
+                      <div key={macro} className={`p-3 rounded-md3-medium text-center border ${c.bg} ${c.border}`}>
+                        <div className={`text-lg font-black ${c.textStrong}`}>{Math.round(grams)}g</div>
+                        <div className={`text-[9px] font-bold uppercase tracking-widest ${c.text}`}>{MACRO_LABELS[macro]}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

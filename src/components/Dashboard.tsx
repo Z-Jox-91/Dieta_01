@@ -3,11 +3,13 @@ import { Calculations } from './Calculations';
 import { Diet } from './Diet';
 import { Recipes } from './Recipes';
 import { Foods } from './Foods';
+import { WelcomeCard } from './WelcomeCard';
 import { DashboardTabId } from '../config/navigation';
 
 interface DashboardProps {
   user: { name: string; email: string };
   activeTab: DashboardTabId;
+  onTabChange: (tab: DashboardTabId) => void;
 }
 
 const TAB_COMPONENTS: Record<DashboardTabId, React.FC> = {
@@ -17,12 +19,25 @@ const TAB_COMPONENTS: Record<DashboardTabId, React.FC> = {
   foods: Foods,
 };
 
-export const Dashboard: React.FC<DashboardProps> = ({ user, activeTab }) => {
+const ONBOARDING_KEY = 'cunzari_onboarding_dismissed';
+
+export const Dashboard: React.FC<DashboardProps> = ({ user, activeTab, onTabChange }) => {
   const [error, setError] = useState<string | null>(null);
+  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
 
   useEffect(() => {
     setError(null);
   }, [activeTab]);
+
+  const dismissWelcome = () => {
+    localStorage.setItem(ONBOARDING_KEY, '1');
+    setShowWelcome(false);
+  };
+
+  const startFromWelcome = () => {
+    onTabChange('calculations');
+    dismissWelcome();
+  };
 
   const ActiveComponent = TAB_COMPONENTS[activeTab] || Calculations;
 
@@ -49,6 +64,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, activeTab }) => {
         </h1>
         <p className="text-sage-600 dark:text-sage-400 text-lg">Il tuo benessere inizia da qui.</p>
       </div>
+
+      {showWelcome && <WelcomeCard onStart={startFromWelcome} onDismiss={dismissWelcome} />}
 
       {/* Tab Content */}
       <div className="animate-slide-up pb-10">

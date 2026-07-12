@@ -4,8 +4,10 @@ import { sendMessageToGemini, ChatMessage } from '../utils/gemini';
 import { db, auth } from '../firebase';
 import { collection, getDocs, doc, setDoc, query, orderBy, onSnapshot, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { FoodItem } from './Foods';
+import { useConfirm } from './ui/ConfirmProvider';
 
 export const AIAssistant: React.FC = () => {
+  const confirm = useConfirm();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -106,7 +108,13 @@ export const AIAssistant: React.FC = () => {
 
   const clearHistory = async () => {
     if (!auth.currentUser) return;
-    if (confirm('Vuoi davvero cancellare tutta la cronologia della chat?')) {
+    const ok = await confirm({
+      title: 'Cancellare la cronologia?',
+      message: 'Tutti i messaggi di questa chat verranno eliminati definitivamente.',
+      confirmLabel: 'Cancella',
+      danger: true,
+    });
+    if (ok) {
       const historyRef = collection(db, `users/${auth.currentUser.uid}/chat_history`);
       const snapshot = await getDocs(historyRef);
       const batch = snapshot.docs.map(d => deleteDoc(d.ref));
