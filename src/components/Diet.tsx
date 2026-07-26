@@ -32,6 +32,12 @@ interface MealsDataStore {
   [key: string]: DayMeals;
 }
 
+interface DailyMealKcal {
+  [day: string]: {
+    [meal: string]: number;
+  };
+}
+
 const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
 export const Diet: React.FC = () => {
@@ -40,6 +46,7 @@ export const Diet: React.FC = () => {
   const [mealsData, setMealsData] = useState<MealsDataStore>({});
   const [showGuide, setShowGuide] = useState(false);
   const [isLoadingMeals, setIsLoadingMeals] = useState(true);
+  const [mealKcalTargets, setMealKcalTargets] = useState<DailyMealKcal>({});
 
   useEffect(() => {
     const loadMealsData = async () => {
@@ -65,13 +72,21 @@ export const Diet: React.FC = () => {
         // Carica i dati da Firestore
         const mealsDoc = doc(db, `users/${auth.currentUser.uid}/data/meals`);
         const mealsSnapshot = await getDoc(mealsDoc);
-        
+
         if (mealsSnapshot.exists()) {
           const mealsData = mealsSnapshot.data() as MealsDataStore;
           setMealsData(mealsData);
         } else {
           console.log('Nessun dato pasti trovato, inizializzazione con oggetto vuoto');
           setMealsData({});
+        }
+
+        // Carica i target kcal per pasto impostati nella scheda Calcoli
+        const mealParamsDoc = doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`);
+        const mealParamsSnapshot = await getDoc(mealParamsDoc);
+        if (mealParamsSnapshot.exists()) {
+          const mealParams = mealParamsSnapshot.data();
+          if (mealParams.dailyMealKcal) setMealKcalTargets(mealParams.dailyMealKcal);
         }
       } catch (error) {
         console.error('Errore nel caricamento dei dati da Firestore:', error);
@@ -296,6 +311,7 @@ export const Diet: React.FC = () => {
               mealData={getCurrentDayData().breakfast}
               onUpdate={(data) => updateDayData({ ...getCurrentDayData(), breakfast: data })}
               dayName={daysOfWeek[selectedDay]}
+              targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.['Colazione']}
             />
 
             <MealSection
@@ -303,6 +319,7 @@ export const Diet: React.FC = () => {
               mealData={getCurrentDayData().morningSnack}
               onUpdate={(data) => updateDayData({ ...getCurrentDayData(), morningSnack: data })}
               dayName={daysOfWeek[selectedDay]}
+              targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.['Spuntino1']}
             />
 
             <MealSection
@@ -310,6 +327,7 @@ export const Diet: React.FC = () => {
               mealData={getCurrentDayData().lunch}
               onUpdate={(data) => updateDayData({ ...getCurrentDayData(), lunch: data })}
               dayName={daysOfWeek[selectedDay]}
+              targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.['Pranzo']}
             />
 
             <MealSection
@@ -317,6 +335,7 @@ export const Diet: React.FC = () => {
               mealData={getCurrentDayData().afternoonSnack}
               onUpdate={(data) => updateDayData({ ...getCurrentDayData(), afternoonSnack: data })}
               dayName={daysOfWeek[selectedDay]}
+              targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.['Spuntino2']}
             />
 
             <MealSection
@@ -324,6 +343,7 @@ export const Diet: React.FC = () => {
               mealData={getCurrentDayData().dinner}
               onUpdate={(data) => updateDayData({ ...getCurrentDayData(), dinner: data })}
               dayName={daysOfWeek[selectedDay]}
+              targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.['Cena']}
             />
           </>
         )}

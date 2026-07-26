@@ -222,6 +222,10 @@ export const Calculations: React.FC = () => {
     return Object.values(dailyCalorieLimits).reduce((sum, val) => sum + (val || 0), 0);
   };
 
+  const getDayMealTotal = (day: string): number => {
+    return mealTypes.reduce((sum, meal) => sum + (dailyMealKcal[day]?.[meal] || 0), 0);
+  };
+
   const isFormValid = data.age > 0 && data.height > 0 && data.weight > 0;
 
   const getBmiCategory = (bmi: number): string => {
@@ -407,25 +411,47 @@ export const Calculations: React.FC = () => {
                 <tr>
                   <th className="md3-table-th">Giorno</th>
                   {mealTypes.map(m => <th key={m} className="md3-table-th text-center">{m}</th>)}
+                  <th className="md3-table-th text-center">Totale Giorno</th>
                 </tr>
               </thead>
               <tbody>
-                {daysOfWeek.map((day, idx) => (
-                  <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
-                    <td className="md3-table-td font-bold text-sage-900 dark:text-sage-100">{day}</td>
-                    {mealTypes.map(meal => (
-                      <td key={meal} className="md3-table-td p-2">
-                        <input
-                          type="number"
-                          value={dailyMealKcal[day]?.[meal] || ''}
-                          onChange={(e) => handleMealKcalChange(day, meal, e.target.value)}
-                          className="md3-input w-full py-1 text-center text-xs font-bold"
-                          placeholder="kcal"
-                        />
+                {daysOfWeek.map((day, idx) => {
+                  const dayTotal = getDayMealTotal(day);
+                  const weeklyTarget = dailyCalorieLimits[day] || 0;
+                  const diff = dayTotal - weeklyTarget;
+                  const hasComparison = dayTotal > 0 && weeklyTarget > 0;
+                  const isAligned = hasComparison && Math.abs(diff) <= 50;
+                  return (
+                    <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
+                      <td className="md3-table-td font-bold text-sage-900 dark:text-sage-100">{day}</td>
+                      {mealTypes.map(meal => (
+                        <td key={meal} className="md3-table-td p-2">
+                          <input
+                            type="number"
+                            value={dailyMealKcal[day]?.[meal] || ''}
+                            onChange={(e) => handleMealKcalChange(day, meal, e.target.value)}
+                            className="md3-input w-full py-1 text-center text-xs font-bold"
+                            placeholder="kcal"
+                          />
+                        </td>
+                      ))}
+                      <td className="md3-table-td text-center">
+                        <p className="font-black text-sage-900 dark:text-sage-50">{dayTotal} <span className="text-xs font-normal text-sage-500">kcal</span></p>
+                        {hasComparison ? (
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                            isAligned
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                              : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                          }`}>
+                            {isAligned ? 'Allineato' : diff > 0 ? `+${diff} vs target` : `${diff} vs target`}
+                          </span>
+                        ) : weeklyTarget > 0 ? (
+                          <span className="inline-block mt-1 text-[10px] text-sage-400 dark:text-sage-500">Target: {weeklyTarget} kcal</span>
+                        ) : null}
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -125,7 +125,7 @@ export const AIAssistant: React.FC = () => {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-50">
         {/* Floating Action Button */}
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -137,7 +137,7 @@ export const AIAssistant: React.FC = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[450px] sm:h-[650px] bg-white dark:bg-surface-dark sm:rounded-3xl shadow-2xl flex flex-col z-50 border border-sage-200 dark:border-sage-800 overflow-hidden animate-in slide-in-from-bottom-10">
+        <div className="fixed inset-0 lg:inset-auto lg:bottom-24 lg:right-6 lg:w-[450px] lg:h-[650px] bg-white dark:bg-surface-dark lg:rounded-3xl shadow-2xl flex flex-col z-50 border border-sage-200 dark:border-sage-800 overflow-hidden animate-in slide-in-from-bottom-10">
           {/* Header */}
           <div className="p-4 bg-primary-600 dark:bg-primary-700 text-white flex items-center justify-between shadow-lg">
             <div className="flex items-center space-x-3">

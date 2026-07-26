@@ -28,6 +28,7 @@ interface MealSectionProps {
   mealData: MealItem[];
   onUpdate: (data: MealItem[]) => void;
   dayName: string;
+  targetKcal?: number;
 }
 
 /** Ricava i valori per 100g di un item, anche per dati salvati prima dell'introduzione dei campi base*. */
@@ -61,7 +62,8 @@ export const MealSection: React.FC<MealSectionProps> = ({
   title,
   mealData,
   onUpdate,
-  dayName
+  dayName,
+  targetKcal
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -157,6 +159,10 @@ export const MealSection: React.FC<MealSectionProps> = ({
   const totals = calculateTotals();
   const balance = evaluateMealBalance(totals);
 
+  const hasTarget = !!targetKcal && targetKcal > 0;
+  const kcalDiff = hasTarget ? Math.round(totals.calories - targetKcal!) : 0;
+  const isKcalAligned = hasTarget && Math.abs(kcalDiff) <= 50;
+
   return (
     <div className="md3-card border border-sage-200 dark:border-sage-800 shadow-none">
       <div
@@ -181,8 +187,13 @@ export const MealSection: React.FC<MealSectionProps> = ({
             <div className="text-right hidden sm:block">
               <p className="text-[10px] font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 mb-0.5">Totale Pasto</p>
               <p className="text-sm font-bold text-sage-700 dark:text-sage-300">
-                {Math.round(totals.calories)} kcal • {totals.proteins.toFixed(1)}g proteine
+                {Math.round(totals.calories)}{hasTarget ? ` / ${targetKcal} kcal` : ' kcal'} • {totals.proteins.toFixed(1)}g proteine
               </p>
+              {hasTarget && (
+                <p className={`text-[10px] font-bold ${isKcalAligned ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                  {isKcalAligned ? 'In linea con il target Calcoli' : kcalDiff > 0 ? `+${kcalDiff} kcal rispetto al target` : `${kcalDiff} kcal rispetto al target`}
+                </p>
+              )}
             </div>
             {isExpanded ? (
               <ChevronUp className="w-5 h-5 text-sage-400" />
@@ -195,6 +206,23 @@ export const MealSection: React.FC<MealSectionProps> = ({
 
       {isExpanded && (
         <div className="p-6">
+          {/* Confronto con il target kcal impostato nella scheda Calcoli (visibile anche su mobile) */}
+          {hasTarget && (
+            <div className={`sm:hidden mb-6 p-4 rounded-md3-medium border flex items-center justify-between ${
+              isKcalAligned
+                ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800/30'
+                : 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30'
+            }`}>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-sage-500 dark:text-sage-400 mb-0.5">Totale / Target Calcoli</p>
+                <p className="text-lg font-black text-sage-900 dark:text-sage-50">{Math.round(totals.calories)} <span className="text-sm font-normal text-sage-500">/ {targetKcal} kcal</span></p>
+              </div>
+              <span className={`text-xs font-black uppercase tracking-widest ${isKcalAligned ? 'text-green-700 dark:text-green-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                {isKcalAligned ? 'In linea' : kcalDiff > 0 ? `+${kcalDiff}` : `${kcalDiff}`}
+              </span>
+            </div>
+          )}
+
           {/* Layout Desktop */}
           <div className="hidden lg:block md3-table-container mb-6">
             <table className="md3-table">

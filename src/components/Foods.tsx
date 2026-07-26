@@ -1,11 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Upload, Trash2, Edit3, Save, X, CheckCircle } from 'lucide-react';
+import { Plus, Upload, Trash2, Edit3, Save, X, CheckCircle, Camera, Sparkles, Loader2, ImagePlus } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db, auth } from '../firebase';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { useToast } from './ui/ToastProvider';
 import { useConfirm } from './ui/ConfirmProvider';
 import { Skeleton, SkeletonTableRows } from './ui/Skeleton';
+import { extractFoodFromPhotos } from '../utils/gemini';
+
+const fileToBase64 = (file: File): Promise<{ data: string; mimeType: string }> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const [header, data] = result.split(',');
+      const mimeType = header.match(/data:(.*);base64/)?.[1] || file.type || 'image/jpeg';
+      resolve({ data, mimeType });
+    };
+    reader.onerror = () => reject(new Error('Errore nella lettura del file immagine.'));
+    reader.readAsDataURL(file);
+  });
+};
 
 export interface FoodItem {
   id: string;
@@ -55,6 +70,13 @@ export const Foods: React.FC = () => {
   const [isLoadingFoods, setIsLoadingFoods] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<'all' | 'CRB' | 'PRT' | 'LPD'>('all');
+
+  // Aggiunta alimento tramite due foto (nome/etichetta + tabella nutrizionale) analizzate da Gemini Vision
+  const [nameImageFile, setNameImageFile] = useState<File | null>(null);
+  const [nutritionImageFile, setNutritionImageFile] = useState<File | null>(null);
+  const [nameImagePreview, setNameImagePreview] = useState<string | null>(null);
+  const [nutritionImagePreview, setNutritionImagePreview] = useState<string | null>(null);
+  const [isAnalyzingPhotos, setIsAnalyzingPhotos] = useState(false);
 
   // Carica i dati da Firestore all'avvio con onSnapshot per real-time sync
   useEffect(() => {
@@ -183,6 +205,63 @@ export const Foods: React.FC = () => {
     }
 
     e.target.value = '';
+  };
+
+  const resetPhotoAdd = () => {
+    setNameImageFile(null);
+    setNutritionImageFile(null);
+    setNameImagePreview(null);
+    setNutritionImagePreview(null);
+  };
+
+  const handleNameImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setNameImageFile(file);
+    setNameImagePreview(URL.createObjectURL(file));
+    e.target.value = '';
+  };
+
+  const handleNutritionImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setNutritionImageFile(file);
+    setNutritionImagePreview(URL.createObjectURL(file));
+    e.target.value = '';
+  };
+
+  // Analizza le due foto con Gemini Vision e precompila il form di nuovo alimento per la revisione
+  const handleAnalyzePhotos = async () => {
+    if (!nameImageFile || !nutritionImageFile) {
+      showToast('Carica entrambe le foto prima di analizzare.', 'error');
+      return;
+    }
+
+    setIsAnalyzingPhotos(true);
+    try {
+      const [nameImg, nutritionImg] = await Promise.all([
+        fileToBase64(nameImageFile),
+        fileToBase64(nutritionImageFile),
+      ]);
+      const extracted = await extractFoodFromPhotos(nameImg, nutritionImg);
+
+      setNewFood({
+        name: extracted.name,
+        calories: extracted.calories,
+        carbs: extracted.carbs,
+        proteins: extracted.proteins,
+        fats: extracted.fats,
+        unit: extracted.unit,
+      });
+      setIsAddingNew(true);
+      resetPhotoAdd();
+      showToast('Dati estratti dalle foto: controlla i valori e salva.', 'success');
+    } catch (error: any) {
+      console.error('Errore analisi foto alimento:', error);
+      showToast(error.message || 'Errore durante l\'analisi delle foto.', 'error');
+    } finally {
+      setIsAnalyzingPhotos(false);
+    }
   };
 
   // Aggiunge un nuovo alimento
@@ -357,6 +436,65 @@ export const Foods: React.FC = () => {
             <span>Database caricato con successo! ({foods.length} alimenti)</span>
           </div>
         )}
+      </div>
+
+      {/* Aggiungi alimento con due foto (AI) */}
+      <div className="md3-card p-6 sm:p-8 border border-sage-200 dark:border-sage-800">
+        <div className="flex items-center space-x-3 mb-2">
+          <Sparkles className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+          <h2 className="text-xl font-bold text-sage-900 dark:text-sage-50 mb-0">Aggiungi con foto (AI)</h2>
+        </div>
+        <p className="text-sm text-sage-600 dark:text-sage-400 mb-6">
+          Scatta o carica una foto del nome del prodotto e una della tabella nutrizionale: l'AI leggerà i valori
+          e precompilerà il modulo per te, che potrai controllare e salvare.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <label className="cursor-pointer">
+            <input type="file" accept="image/*" capture="environment" onChange={handleNameImageChange} className="hidden" />
+            <div className="border-2 border-dashed border-sage-300 dark:border-sage-700 rounded-md3-medium p-4 hover:border-primary-500 hover:bg-primary-50/30 dark:hover:bg-primary-900/10 transition-all flex items-center gap-4">
+              {nameImagePreview ? (
+                <img src={nameImagePreview} alt="Anteprima nome alimento" className="w-16 h-16 object-cover rounded-md3-small flex-shrink-0" />
+              ) : (
+                <div className="w-16 h-16 rounded-md3-small bg-sage-100 dark:bg-surface-container-dark flex items-center justify-center flex-shrink-0">
+                  <Camera className="w-6 h-6 text-sage-400" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-bold text-sm text-sage-900 dark:text-sage-50">Foto 1 · Nome / etichetta</p>
+                <p className="text-xs text-sage-500 dark:text-sage-400 truncate">{nameImageFile ? nameImageFile.name : 'Tocca per scattare o caricare'}</p>
+              </div>
+            </div>
+          </label>
+
+          <label className="cursor-pointer">
+            <input type="file" accept="image/*" capture="environment" onChange={handleNutritionImageChange} className="hidden" />
+            <div className="border-2 border-dashed border-sage-300 dark:border-sage-700 rounded-md3-medium p-4 hover:border-primary-500 hover:bg-primary-50/30 dark:hover:bg-primary-900/10 transition-all flex items-center gap-4">
+              {nutritionImagePreview ? (
+                <img src={nutritionImagePreview} alt="Anteprima tabella nutrizionale" className="w-16 h-16 object-cover rounded-md3-small flex-shrink-0" />
+              ) : (
+                <div className="w-16 h-16 rounded-md3-small bg-sage-100 dark:bg-surface-container-dark flex items-center justify-center flex-shrink-0">
+                  <ImagePlus className="w-6 h-6 text-sage-400" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-bold text-sm text-sage-900 dark:text-sage-50">Foto 2 · Tabella nutrizionale</p>
+                <p className="text-xs text-sage-500 dark:text-sage-400 truncate">{nutritionImageFile ? nutritionImageFile.name : 'Tocca per scattare o caricare'}</p>
+              </div>
+            </div>
+          </label>
+        </div>
+
+        <button
+          onClick={handleAnalyzePhotos}
+          disabled={!nameImageFile || !nutritionImageFile || isAnalyzingPhotos}
+          className={`md3-button-primary flex items-center justify-center space-x-2 w-full sm:w-auto ${
+            (!nameImageFile || !nutritionImageFile || isAnalyzingPhotos) ? 'opacity-50 grayscale cursor-not-allowed' : ''
+          }`}
+        >
+          {isAnalyzingPhotos ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+          <span>{isAnalyzingPhotos ? 'Analisi in corso...' : 'Analizza con AI'}</span>
+        </button>
       </div>
 
       {/* Filtri e ricerca */}

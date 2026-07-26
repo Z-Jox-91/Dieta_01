@@ -48,7 +48,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-[100] flex flex-col gap-2 w-[calc(100%-3rem)] max-w-sm">
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 lg:bottom-6 lg:left-auto lg:right-6 lg:translate-x-0 z-[100] flex flex-col gap-2 w-[calc(100%-3rem)] max-w-sm">
         {toasts.map(toast => {
           const { icon: Icon, classes } = VARIANT_STYLES[toast.variant];
           return (

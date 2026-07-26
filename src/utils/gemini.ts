@@ -126,6 +126,79 @@ export const sendMessageToGemini = async (
   }
 };
 
+export interface ExtractedFoodInfo {
+  name: string;
+  unit: string;
+  calories: number;
+  carbs: number;
+  proteins: number;
+  fats: number;
+}
+
+export const extractFoodFromPhotos = async (
+  nameImage: { data: string; mimeType: string },
+  nutritionImage: { data: string; mimeType: string }
+): Promise<ExtractedFoodInfo> => {
+  const apiKey = getApiKey();
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: MODEL_NAME,
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 2048,
+      thinkingConfig: { thinkingBudget: 0 },
+      responseMimeType: "application/json",
+    } as any,
+  });
+
+  const prompt = `
+    Analizza le due immagini fornite di un alimento confezionato.
+    La PRIMA immagine mostra il nome/etichetta del prodotto.
+    La SECONDA immagine mostra la tabella dei valori nutrizionali.
+
+    Estrai queste informazioni e rispondi ESCLUSIVAMENTE con un oggetto JSON con questa struttura esatta,
+    senza testo aggiuntivo né recinzioni markdown:
+    {"name": string, "unit": "g" o "ml", "calories": number, "carbs": number, "proteins": number, "fats": number}
+
+    Regole:
+    - "name": nome breve e chiaro del prodotto, in italiano se riconoscibile dall'etichetta.
+    - "unit": "g" per alimenti solidi, "ml" per bevande/liquidi.
+    - I valori numerici devono riferirsi a 100 g o 100 ml di prodotto (non alla singola porzione): usa la colonna
+      "per 100 g"/"per 100 ml" della tabella se presente; se la tabella riporta solo il valore per porzione,
+      convertilo proporzionalmente a 100 g/100 ml usando il peso della porzione indicato in etichetta.
+    - "calories" in kcal, "carbs"/"proteins"/"fats" in grammi.
+    - Se un valore non è leggibile con certezza, stima il numero più plausibile in base agli altri dati visibili
+      nella tabella: non restituire mai 0 senza che sia il valore reale.
+  `;
+
+  try {
+    const result = await model.generateContent([
+      { text: prompt },
+      { inlineData: { mimeType: nameImage.mimeType, data: nameImage.data } },
+      { inlineData: { mimeType: nutritionImage.mimeType, data: nutritionImage.data } },
+    ]);
+    const text = result.response.text();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("L'AI non è riuscita a leggere le foto. Riprova con immagini più nitide e ben illuminate.");
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      name: String(parsed.name || '').trim(),
+      unit: parsed.unit === 'ml' ? 'ml' : 'g',
+      calories: Number(parsed.calories) || 0,
+      carbs: Number(parsed.carbs) || 0,
+      proteins: Number(parsed.proteins) || 0,
+      fats: Number(parsed.fats) || 0,
+    };
+  } catch (error: any) {
+    console.error('Errore estrazione alimento da foto:', error);
+    if (error instanceof SyntaxError) {
+      throw new Error("L'AI ha restituito un formato non valido. Riprova con foto più chiare.");
+    }
+    throw translateGeminiError(error);
+  }
+};
+
 export const generateRecipesWithGemini = async (
   ingredients: string[],
   target: MacroTarget
