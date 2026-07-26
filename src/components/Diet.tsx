@@ -38,7 +38,19 @@ interface DailyMealKcal {
   };
 }
 
+interface ActiveMeals {
+  [meal: string]: boolean;
+}
+
 const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+
+const MEAL_CONFIG: { title: string; key: keyof DayMeals }[] = [
+  { title: 'Colazione', key: 'breakfast' },
+  { title: 'Spuntino1', key: 'morningSnack' },
+  { title: 'Pranzo', key: 'lunch' },
+  { title: 'Spuntino2', key: 'afternoonSnack' },
+  { title: 'Cena', key: 'dinner' },
+];
 
 export const Diet: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState(0);
@@ -47,6 +59,7 @@ export const Diet: React.FC = () => {
   const [showGuide, setShowGuide] = useState(false);
   const [isLoadingMeals, setIsLoadingMeals] = useState(true);
   const [mealKcalTargets, setMealKcalTargets] = useState<DailyMealKcal>({});
+  const [activeMeals, setActiveMeals] = useState<ActiveMeals>({});
 
   useEffect(() => {
     const loadMealsData = async () => {
@@ -87,6 +100,7 @@ export const Diet: React.FC = () => {
         if (mealParamsSnapshot.exists()) {
           const mealParams = mealParamsSnapshot.data();
           if (mealParams.dailyMealKcal) setMealKcalTargets(mealParams.dailyMealKcal);
+          if (mealParams.activeMeals) setActiveMeals(mealParams.activeMeals);
         }
       } catch (error) {
         console.error('Errore nel caricamento dei dati da Firestore:', error);
@@ -306,45 +320,16 @@ export const Diet: React.FC = () => {
           ))
         ) : (
           <>
-            <MealSection
-              title="Colazione"
-              mealData={getCurrentDayData().breakfast}
-              onUpdate={(data) => updateDayData({ ...getCurrentDayData(), breakfast: data })}
-              dayName={daysOfWeek[selectedDay]}
-              targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.['Colazione']}
-            />
-
-            <MealSection
-              title="Spuntino1"
-              mealData={getCurrentDayData().morningSnack}
-              onUpdate={(data) => updateDayData({ ...getCurrentDayData(), morningSnack: data })}
-              dayName={daysOfWeek[selectedDay]}
-              targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.['Spuntino1']}
-            />
-
-            <MealSection
-              title="Pranzo"
-              mealData={getCurrentDayData().lunch}
-              onUpdate={(data) => updateDayData({ ...getCurrentDayData(), lunch: data })}
-              dayName={daysOfWeek[selectedDay]}
-              targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.['Pranzo']}
-            />
-
-            <MealSection
-              title="Spuntino2"
-              mealData={getCurrentDayData().afternoonSnack}
-              onUpdate={(data) => updateDayData({ ...getCurrentDayData(), afternoonSnack: data })}
-              dayName={daysOfWeek[selectedDay]}
-              targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.['Spuntino2']}
-            />
-
-            <MealSection
-              title="Cena"
-              mealData={getCurrentDayData().dinner}
-              onUpdate={(data) => updateDayData({ ...getCurrentDayData(), dinner: data })}
-              dayName={daysOfWeek[selectedDay]}
-              targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.['Cena']}
-            />
+            {MEAL_CONFIG.filter(cfg => activeMeals[cfg.title] !== false).map(cfg => (
+              <MealSection
+                key={cfg.title}
+                title={cfg.title}
+                mealData={getCurrentDayData()[cfg.key]}
+                onUpdate={(data) => updateDayData({ ...getCurrentDayData(), [cfg.key]: data })}
+                dayName={daysOfWeek[selectedDay]}
+                targetKcal={mealKcalTargets[daysOfWeek[selectedDay]]?.[cfg.title]}
+              />
+            ))}
           </>
         )}
       </div>

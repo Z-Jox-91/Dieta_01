@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, Target, Settings, Info, ChevronDown, ChevronUp, Lock } from 'lucide-react';
+import { Calculator, Target, Info, ChevronDown, ChevronUp, Lock, Shuffle } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { CREA_RANGES } from '../utils/mealBalance';
+import { distributeExact } from '../utils/kcalDistribution';
+import { useToast } from './ui/ToastProvider';
 
 interface CalculationData {
   age: number;
@@ -37,10 +39,28 @@ interface DailyMealKcal {
   };
 }
 
-type SectionId = 'personal' | 'results' | 'weekly' | 'meals';
+interface ActiveMeals {
+  [meal: string]: boolean;
+}
+
+interface MealSplitPercents {
+  [meal: string]: number;
+}
+
+type WeeklyDistributionMode = 'uniform' | 'weekend_boost' | 'custom';
+
+type SectionId = 'personal' | 'results' | 'planning';
 
 const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-const mealTypes = ['Colazione', 'Pranzo', 'Cena', 'Spuntino1', 'Spuntino2'];
+const mealTypes = ['Colazione', 'Spuntino1', 'Pranzo', 'Spuntino2', 'Cena'];
+const DEFAULT_SPLIT_PERCENTS: MealSplitPercents = { Colazione: 20, Spuntino1: 5, Pranzo: 35, Spuntino2: 5, Cena: 35 };
+const WEEKEND_DAY_INDEXES = [5, 6]; // Sabato, Domenica
+
+const DISTRIBUTION_OPTIONS: { id: WeeklyDistributionMode; label: string }[] = [
+  { id: 'uniform', label: 'Uniforme' },
+  { id: 'weekend_boost', label: 'Weekend più abbondante' },
+  { id: 'custom', label: 'Personalizzato' },
+];
 
 interface AccordionSectionProps {
   step: number;
@@ -83,6 +103,7 @@ const AccordionSection: React.FC<AccordionSectionProps> = ({ step, icon: Icon, t
 );
 
 export const Calculations: React.FC = () => {
+  const { showToast } = useToast();
   const [activeSection, setActiveSection] = useState<SectionId | null>('personal');
   const [data, setData] = useState<CalculationData>({
     age: 0,
@@ -104,6 +125,13 @@ export const Calculations: React.FC = () => {
       [day]: mealTypes.reduce((mAcc, m) => ({ ...mAcc, [m]: 0 }), {})
     }), {})
   );
+
+  const [activeMeals, setActiveMeals] = useState<ActiveMeals>(
+    mealTypes.reduce((acc, m) => ({ ...acc, [m]: true }), {})
+  );
+  const [mealSplitPercents, setMealSplitPercents] = useState<MealSplitPercents>(DEFAULT_SPLIT_PERCENTS);
+  const [weeklyDistributionMode, setWeeklyDistributionMode] = useState<WeeklyDistributionMode>('custom');
+  const [weekendBoostPercent, setWeekendBoostPercent] = useState<number>(15);
 
   useEffect(() => {
     const loadCalculationsData = async () => {
@@ -128,12 +156,16 @@ export const Calculations: React.FC = () => {
           setDailyCalorieLimits(limitsSnapshot.data() as DailyCalorieLimit);
         }
 
-        // Carica i parametri pasti (kcal per pasto)
+        // Carica i parametri pasti (kcal per pasto, pasti attivi, percentuali, modalità settimanale)
         const mealParamsDoc = doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`);
         const mealParamsSnapshot = await getDoc(mealParamsDoc);
         if (mealParamsSnapshot.exists()) {
           const mealParams = mealParamsSnapshot.data();
           if (mealParams.dailyMealKcal) setDailyMealKcal(mealParams.dailyMealKcal);
+          if (mealParams.activeMeals) setActiveMeals(mealParams.activeMeals);
+          if (mealParams.mealSplitPercents) setMealSplitPercents(mealParams.mealSplitPercents);
+          if (mealParams.weeklyDistributionMode) setWeeklyDistributionMode(mealParams.weeklyDistributionMode);
+          if (typeof mealParams.weekendBoostPercent === 'number') setWeekendBoostPercent(mealParams.weekendBoostPercent);
         }
       } catch (error) {
         console.error('Errore nel caricamento dei dati da Firestore:', error);
@@ -185,6 +217,21 @@ export const Calculations: React.FC = () => {
     }
   };
 
+  const saveMealParameters = async (partial: Partial<{
+    dailyMealKcal: DailyMealKcal;
+    activeMeals: ActiveMeals;
+    mealSplitPercents: MealSplitPercents;
+    weeklyDistributionMode: WeeklyDistributionMode;
+    weekendBoostPercent: number;
+  }>) => {
+    if (!auth.currentUser) return;
+    try {
+      await setDoc(doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`), partial, { merge: true });
+    } catch (error) {
+      console.error('Errore nel salvataggio parametri pasti:', error);
+    }
+  };
+
   const handleMealKcalChange = async (day: string, meal: string, value: string) => {
     const newValue = parseInt(value) || 0;
     const newDailyMealKcal = {
@@ -192,16 +239,7 @@ export const Calculations: React.FC = () => {
       [day]: { ...dailyMealKcal[day], [meal]: newValue }
     };
     setDailyMealKcal(newDailyMealKcal);
-
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`), {
-          dailyMealKcal: newDailyMealKcal
-        }, { merge: true });
-      } catch (error) {
-        console.error('Errore nel salvataggio kcal pasti:', error);
-      }
-    }
+    await saveMealParameters({ dailyMealKcal: newDailyMealKcal });
   };
 
   const handleDailyLimitChange = async (day: string, value: string) => {
@@ -218,12 +256,97 @@ export const Calculations: React.FC = () => {
     }
   };
 
+  const toggleMeal = async (meal: string) => {
+    const isCurrentlyActive = activeMeals[meal] !== false;
+    const activeCount = mealTypes.filter(m => activeMeals[m] !== false).length;
+    if (isCurrentlyActive && activeCount <= 1) {
+      showToast('Deve rimanere almeno un pasto attivo.', 'error');
+      return;
+    }
+    const newActiveMeals = { ...activeMeals, [meal]: !isCurrentlyActive };
+    setActiveMeals(newActiveMeals);
+    await saveMealParameters({ activeMeals: newActiveMeals });
+  };
+
+  const handleSplitPercentChange = async (meal: string, value: string) => {
+    const newValue = parseFloat(value) || 0;
+    const newPercents = { ...mealSplitPercents, [meal]: newValue };
+    setMealSplitPercents(newPercents);
+    await saveMealParameters({ mealSplitPercents: newPercents });
+  };
+
+  const handleDistributionModeChange = async (mode: WeeklyDistributionMode) => {
+    setWeeklyDistributionMode(mode);
+    await saveMealParameters({ weeklyDistributionMode: mode });
+  };
+
+  const handleWeekendBoostChange = async (value: string) => {
+    const newValue = parseFloat(value) || 0;
+    setWeekendBoostPercent(newValue);
+    await saveMealParameters({ weekendBoostPercent: newValue });
+  };
+
+  const applyWeeklyDistribution = async () => {
+    if (!results || weeklyDistributionMode === 'custom') return;
+
+    let weights: number[];
+    if (weeklyDistributionMode === 'uniform') {
+      weights = daysOfWeek.map(() => 1);
+    } else {
+      const boost = weekendBoostPercent / 100;
+      weights = daysOfWeek.map((_, idx) =>
+        WEEKEND_DAY_INDEXES.includes(idx) ? (1 + boost) : (1 - 0.4 * boost)
+      );
+    }
+
+    const distributed = distributeExact(results.weeklyCalories, weights);
+    const newLimits: DailyCalorieLimit = {};
+    daysOfWeek.forEach((day, idx) => { newLimits[day] = distributed[idx]; });
+    setDailyCalorieLimits(newLimits);
+
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, `users/${auth.currentUser.uid}/data/daily_limits`), newLimits);
+        showToast('Suddivisione settimanale applicata ai 7 giorni.', 'success');
+      } catch (error) {
+        console.error('Errore nel salvataggio limiti giornalieri:', error);
+      }
+    }
+  };
+
+  const activeMealList = mealTypes.filter(m => activeMeals[m] !== false);
+  const activePercentSum = activeMealList.reduce((sum, m) => sum + (mealSplitPercents[m] || 0), 0);
+  const isPercentSumValid = activeMealList.length > 0 && Math.abs(activePercentSum - 100) < 0.5;
+
+  const applyMealDistribution = async () => {
+    if (!isPercentSumValid) return;
+
+    const weights = activeMealList.map(m => mealSplitPercents[m] || 0);
+    const newDailyMealKcal: DailyMealKcal = {};
+
+    daysOfWeek.forEach(day => {
+      const dayTarget = dailyCalorieLimits[day] || 0;
+      const dayMeals: { [meal: string]: number } = { ...dailyMealKcal[day] };
+      if (dayTarget > 0) {
+        const distributed = distributeExact(dayTarget, weights);
+        activeMealList.forEach((meal, idx) => { dayMeals[meal] = distributed[idx]; });
+      } else {
+        activeMealList.forEach(meal => { dayMeals[meal] = 0; });
+      }
+      newDailyMealKcal[day] = dayMeals;
+    });
+
+    setDailyMealKcal(newDailyMealKcal);
+    await saveMealParameters({ dailyMealKcal: newDailyMealKcal });
+    showToast('Distribuzione dei pasti applicata a tutti i giorni.', 'success');
+  };
+
   const getTotalWeeklyLimit = (): number => {
     return Object.values(dailyCalorieLimits).reduce((sum, val) => sum + (val || 0), 0);
   };
 
   const getDayMealTotal = (day: string): number => {
-    return mealTypes.reduce((sum, meal) => sum + (dailyMealKcal[day]?.[meal] || 0), 0);
+    return activeMealList.reduce((sum, meal) => sum + (dailyMealKcal[day]?.[meal] || 0), 0);
   };
 
   const isFormValid = data.age > 0 && data.height > 0 && data.weight > 0;
@@ -337,125 +460,210 @@ export const Calculations: React.FC = () => {
 
       <AccordionSection
         step={3}
-        icon={Target}
-        title="Pianificazione Settimanale"
-        subtitle={isCalculated ? 'Target kcal per ogni giorno della settimana' : 'Calcola prima i tuoi dati personali'}
-        isOpen={activeSection === 'weekly'}
+        icon={Shuffle}
+        title="Pianificazione Settimanale e Pasti"
+        subtitle={isCalculated ? 'Target per giorno, suddivisione settimanale e per pasto' : 'Calcola prima i tuoi dati personali'}
+        isOpen={activeSection === 'planning'}
         locked={!isCalculated}
-        onToggle={() => toggleSection('weekly')}
+        onToggle={() => toggleSection('planning')}
       >
         {isCalculated && results ? (
-          <div className="md3-table-container">
-            <table className="md3-table">
-              <thead className="md3-table-header">
-                <tr>
-                  <th className="md3-table-th">Giorno</th>
-                  <th className="md3-table-th">Target Kcal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {daysOfWeek.map((day, idx) => (
-                  <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
-                    <td className="md3-table-td font-bold">{day}</td>
-                    <td className="md3-table-td">
-                      <input
-                        type="number"
-                        value={dailyCalorieLimits[day] || ''}
-                        onChange={(e) => handleDailyLimitChange(day, e.target.value)}
-                        className="md3-input w-full max-w-[150px] py-2 font-bold"
-                        placeholder="Kcal"
-                      />
-                    </td>
-                  </tr>
+          <>
+            {/* Info range CREA fissi (non più modificabili dall'utente) */}
+            <div className="flex items-start space-x-3 mb-8 p-5 bg-accent-50 dark:bg-accent-900/10 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
+              <Info className="w-5 h-5 text-accent-600 dark:text-accent-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-sage-700 dark:text-sage-300">
+                <p className="font-bold text-sage-900 dark:text-sage-50 mb-1">Macronutrienti secondo le Linee guida CREA</p>
+                <p>
+                  Carboidrati {CREA_RANGES.carbs.min}–{CREA_RANGES.carbs.max}% • Proteine {CREA_RANGES.proteins.min}–{CREA_RANGES.proteins.max}% • Lipidi {CREA_RANGES.fats.min}–{CREA_RANGES.fats.max}% dell'energia.
+                  Questi range sono applicati automaticamente all'ottimizzatore e ai consigli su Dieta e Ricette.
+                </p>
+              </div>
+            </div>
+
+            {/* Suddivisione della settimana */}
+            <div className="mb-8">
+              <p className="text-sm font-bold text-sage-900 dark:text-sage-50 mb-1">Come vuoi suddividere la settimana?</p>
+              <p className="text-xs text-sage-500 dark:text-sage-400 mb-3">Il totale settimanale resta sempre quello del Calcolo Teorico: cambia solo come viene ripartito tra i giorni.</p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {DISTRIBUTION_OPTIONS.map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => handleDistributionModeChange(opt.id)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold border transition-all duration-200 ${
+                      weeklyDistributionMode === opt.id
+                        ? 'bg-primary-600 dark:bg-primary-500 text-white border-primary-600 dark:border-primary-500'
+                        : 'bg-sage-50 dark:bg-surface-container-dark text-sage-600 dark:text-sage-400 border-sage-200 dark:border-sage-800'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
                 ))}
-                <tr className="bg-primary-50 dark:bg-primary-900/20 font-bold">
-                  <td className="md3-table-td text-primary-900 dark:text-primary-100">Totale Settimanale Effettivo</td>
-                  <td className="md3-table-td text-primary-900 dark:text-primary-100 font-black text-xl">{getTotalWeeklyLimit()} <span className="text-sm">kcal</span></td>
-                </tr>
-                <tr className="bg-accent-50 dark:bg-accent-900/20 font-bold">
-                  <td className="md3-table-td text-accent-900 dark:text-accent-100">Calcolo Teorico</td>
-                  <td className="md3-table-td text-accent-900 dark:text-accent-100 font-black text-xl">{Math.round(results.weeklyCalories)} <span className="text-sm">kcal</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-sm text-sage-500 dark:text-sage-400">Compila la sezione "Dati Personali" per impostare qui i target di calorie giornalieri.</p>
-        )}
-      </AccordionSection>
+              </div>
 
-      <AccordionSection
-        step={4}
-        icon={Settings}
-        title="Kcal per Pasto"
-        subtitle="Target calorico per ogni pasto della settimana"
-        isOpen={activeSection === 'meals'}
-        onToggle={() => toggleSection('meals')}
-      >
-        {/* Info range CREA fissi (non più modificabili dall'utente) */}
-        <div className="flex items-start space-x-3 mb-8 p-5 bg-accent-50 dark:bg-accent-900/10 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
-          <Info className="w-5 h-5 text-accent-600 dark:text-accent-400 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-sage-700 dark:text-sage-300">
-            <p className="font-bold text-sage-900 dark:text-sage-50 mb-1">Macronutrienti secondo le Linee guida CREA</p>
-            <p>
-              Carboidrati {CREA_RANGES.carbs.min}–{CREA_RANGES.carbs.max}% • Proteine {CREA_RANGES.proteins.min}–{CREA_RANGES.proteins.max}% • Lipidi {CREA_RANGES.fats.min}–{CREA_RANGES.fats.max}% dell'energia.
-              Questi range sono applicati automaticamente all'ottimizzatore e ai consigli su Dieta e Ricette: qui puoi impostare solo le kcal target per ogni pasto della settimana.
-            </p>
-          </div>
-        </div>
+              {weeklyDistributionMode === 'weekend_boost' && (
+                <div className="flex items-center gap-3 mb-4">
+                  <label className="text-sm font-bold text-sage-700 dark:text-sage-300">Aumento sabato/domenica</label>
+                  <input
+                    type="number"
+                    value={weekendBoostPercent}
+                    onChange={(e) => handleWeekendBoostChange(e.target.value)}
+                    className="md3-input w-24 py-2 text-center font-bold"
+                    min="0"
+                    max="100"
+                  />
+                  <span className="text-sm text-sage-500 dark:text-sage-400">%</span>
+                </div>
+              )}
 
-        <div className="md3-table-container">
-          <div className="overflow-x-auto">
-            <table className="md3-table">
-              <thead className="md3-table-header">
-                <tr>
-                  <th className="md3-table-th">Giorno</th>
-                  {mealTypes.map(m => <th key={m} className="md3-table-th text-center">{m}</th>)}
-                  <th className="md3-table-th text-center">Totale Giorno</th>
-                </tr>
-              </thead>
-              <tbody>
-                {daysOfWeek.map((day, idx) => {
-                  const dayTotal = getDayMealTotal(day);
-                  const weeklyTarget = dailyCalorieLimits[day] || 0;
-                  const diff = dayTotal - weeklyTarget;
-                  const hasComparison = dayTotal > 0 && weeklyTarget > 0;
-                  const isAligned = hasComparison && Math.abs(diff) <= 50;
+              {weeklyDistributionMode !== 'custom' && (
+                <button
+                  onClick={applyWeeklyDistribution}
+                  className="md3-button-primary flex items-center justify-center space-x-2"
+                >
+                  <Target className="w-5 h-5" />
+                  <span>Applica ai 7 giorni</span>
+                </button>
+              )}
+            </div>
+
+            {/* Pasti attivi */}
+            <div className="mb-8">
+              <p className="text-sm font-bold text-sage-900 dark:text-sage-50 mb-1">Quali pasti fai?</p>
+              <p className="text-xs text-sage-500 dark:text-sage-400 mb-3">Disattiva quelli che salti: spariranno anche dalla scheda Dieta.</p>
+              <div className="flex flex-wrap gap-2">
+                {mealTypes.map(meal => {
+                  const isActive = activeMeals[meal] !== false;
                   return (
-                    <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
-                      <td className="md3-table-td font-bold text-sage-900 dark:text-sage-100">{day}</td>
-                      {mealTypes.map(meal => (
-                        <td key={meal} className="md3-table-td p-2">
-                          <input
-                            type="number"
-                            value={dailyMealKcal[day]?.[meal] || ''}
-                            onChange={(e) => handleMealKcalChange(day, meal, e.target.value)}
-                            className="md3-input w-full py-1 text-center text-xs font-bold"
-                            placeholder="kcal"
-                          />
-                        </td>
-                      ))}
-                      <td className="md3-table-td text-center">
-                        <p className="font-black text-sage-900 dark:text-sage-50">{dayTotal} <span className="text-xs font-normal text-sage-500">kcal</span></p>
-                        {hasComparison ? (
-                          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                            isAligned
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                              : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
-                          }`}>
-                            {isAligned ? 'Allineato' : diff > 0 ? `+${diff} vs target` : `${diff} vs target`}
-                          </span>
-                        ) : weeklyTarget > 0 ? (
-                          <span className="inline-block mt-1 text-[10px] text-sage-400 dark:text-sage-500">Target: {weeklyTarget} kcal</span>
-                        ) : null}
-                      </td>
-                    </tr>
+                    <button
+                      key={meal}
+                      onClick={() => toggleMeal(meal)}
+                      className={`px-4 py-2 rounded-full text-sm font-bold border transition-all duration-200 ${
+                        isActive
+                          ? 'bg-primary-600 dark:bg-primary-500 text-white border-primary-600 dark:border-primary-500'
+                          : 'bg-sage-50 dark:bg-surface-container-dark text-sage-400 dark:text-sage-600 border-sage-200 dark:border-sage-800'
+                      }`}
+                    >
+                      {meal}
+                    </button>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </div>
+            </div>
+
+            {/* Percentuali di suddivisione tra i pasti attivi */}
+            <div className="mb-8">
+              <p className="text-sm font-bold text-sage-900 dark:text-sage-50 mb-1">Come dividere le kcal tra i pasti attivi?</p>
+              <p className="text-xs text-sage-500 dark:text-sage-400 mb-3">Percentuali di riferimento usate dalla distribuzione automatica: devono sommare a 100%.</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-3">
+                {activeMealList.map(meal => (
+                  <div key={meal} className="space-y-1">
+                    <label className="block text-xs font-bold text-sage-600 dark:text-sage-400">{meal}</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={mealSplitPercents[meal] ?? ''}
+                        onChange={(e) => handleSplitPercentChange(meal, e.target.value)}
+                        className="md3-input w-full py-2 text-center font-bold pr-7"
+                        min="0"
+                        max="100"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sage-400">%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className={`text-xs font-bold mb-4 ${isPercentSumValid ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                Totale percentuali: {activePercentSum.toFixed(0)}% {isPercentSumValid ? '✓' : '— deve sommare a 100%'}
+              </p>
+              <button
+                onClick={applyMealDistribution}
+                disabled={!isPercentSumValid}
+                className={`md3-button-primary flex items-center justify-center space-x-2 ${!isPercentSumValid ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+              >
+                <Shuffle className="w-5 h-5" />
+                <span>Distribuisci automaticamente i pasti</span>
+              </button>
+            </div>
+
+            {/* Tabella unica: target giorno + pasti + assegnato/rimanente */}
+            <div className="md3-table-container">
+              <div className="overflow-x-auto">
+                <table className="md3-table">
+                  <thead className="md3-table-header">
+                    <tr>
+                      <th className="md3-table-th">Giorno</th>
+                      <th className="md3-table-th text-center">Target Giorno</th>
+                      {activeMealList.map(m => <th key={m} className="md3-table-th text-center">{m}</th>)}
+                      <th className="md3-table-th text-center">Assegnato / Rimanente</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {daysOfWeek.map((day, idx) => {
+                      const dayTarget = dailyCalorieLimits[day] || 0;
+                      const dayTotal = getDayMealTotal(day);
+                      const remaining = dayTarget - dayTotal;
+                      const hasTarget = dayTarget > 0;
+                      const isAligned = hasTarget && Math.abs(remaining) <= 50;
+                      return (
+                        <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
+                          <td className="md3-table-td font-bold text-sage-900 dark:text-sage-100">{day}</td>
+                          <td className="md3-table-td p-2">
+                            <input
+                              type="number"
+                              value={dailyCalorieLimits[day] || ''}
+                              onChange={(e) => handleDailyLimitChange(day, e.target.value)}
+                              className="md3-input w-full max-w-[130px] mx-auto py-1.5 text-center font-bold"
+                              placeholder="kcal"
+                            />
+                          </td>
+                          {activeMealList.map(meal => (
+                            <td key={meal} className="md3-table-td p-2">
+                              <input
+                                type="number"
+                                value={dailyMealKcal[day]?.[meal] || ''}
+                                onChange={(e) => handleMealKcalChange(day, meal, e.target.value)}
+                                className="md3-input w-full py-1 text-center text-xs font-bold"
+                                placeholder="kcal"
+                              />
+                            </td>
+                          ))}
+                          <td className="md3-table-td text-center">
+                            <p className="text-[10px] text-sage-500 dark:text-sage-400 mb-0.5">Assegnate</p>
+                            <p className="font-black text-sage-900 dark:text-sage-50">
+                              {dayTotal}{hasTarget ? ` / ${dayTarget}` : ''} <span className="text-xs font-normal text-sage-500">kcal</span>
+                            </p>
+                            {hasTarget ? (
+                              <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                isAligned
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                  : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                              }`}>
+                                {isAligned ? 'In pari' : remaining > 0 ? `Restano ${remaining}` : `Sfora di ${Math.abs(remaining)}`}
+                              </span>
+                            ) : (
+                              <span className="inline-block mt-1 text-[10px] text-sage-400 dark:text-sage-500">Imposta un target</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="bg-primary-50 dark:bg-primary-900/20 font-bold">
+                      <td className="md3-table-td text-primary-900 dark:text-primary-100" colSpan={1 + activeMealList.length}>Totale Settimanale Effettivo</td>
+                      <td className="md3-table-td text-primary-900 dark:text-primary-100 font-black text-xl">{getTotalWeeklyLimit()} <span className="text-sm">kcal</span></td>
+                    </tr>
+                    <tr className="bg-accent-50 dark:bg-accent-900/20 font-bold">
+                      <td className="md3-table-td text-accent-900 dark:text-accent-100" colSpan={1 + activeMealList.length}>Calcolo Teorico</td>
+                      <td className="md3-table-td text-accent-900 dark:text-accent-100 font-black text-xl">{Math.round(results.weeklyCalories)} <span className="text-sm">kcal</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-sage-500 dark:text-sage-400">Compila la sezione "Dati Personali" e premi "Calcola Risultati" per impostare qui la pianificazione.</p>
+        )}
       </AccordionSection>
     </div>
   );
