@@ -238,8 +238,8 @@ export const MealSection: React.FC<MealSectionProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {mealData.map((item, idx) => (
-                  <tr key={item.id} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
+                {mealData.map((item) => (
+                  <tr key={item.id} className="md3-table-tr">
                     <td className="md3-table-td">
                       <FoodAutocomplete
                         value={item.food}
@@ -251,15 +251,31 @@ export const MealSection: React.FC<MealSectionProps> = ({
                         type="number"
                         value={item.grams || ''}
                         onChange={(e) => handleGramsChange(item, e.target.value)}
-                        className="md3-input py-1.5 px-3 text-center w-24 font-bold"
+                        className="py-1.5 px-3 text-center w-24 font-black rounded-full border-none bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100 placeholder-sage-400 focus:ring-2 focus:ring-primary-500 transition-all"
                         placeholder="0"
                         min="0"
                       />
                     </td>
-                    <td className="md3-table-td text-center font-bold text-sage-900 dark:text-sage-50">{Math.round(item.calories || 0)}</td>
-                    <td className="md3-table-td text-center">{(item.proteins || 0).toFixed(1)}g</td>
-                    <td className="md3-table-td text-center">{(item.carbs || 0).toFixed(1)}g</td>
-                    <td className="md3-table-td text-center">{(item.fats || 0).toFixed(1)}g</td>
+                    <td className="md3-table-td text-center">
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100">
+                        {Math.round(item.calories || 0)}
+                      </span>
+                    </td>
+                    <td className="md3-table-td text-center">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.proteins.bg} ${MACRO_CARD_CLASSES.proteins.textStrong}`}>
+                        {(item.proteins || 0).toFixed(1)}g
+                      </span>
+                    </td>
+                    <td className="md3-table-td text-center">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.carbs.bg} ${MACRO_CARD_CLASSES.carbs.textStrong}`}>
+                        {(item.carbs || 0).toFixed(1)}g
+                      </span>
+                    </td>
+                    <td className="md3-table-td text-center">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.fats.bg} ${MACRO_CARD_CLASSES.fats.textStrong}`}>
+                        {(item.fats || 0).toFixed(1)}g
+                      </span>
+                    </td>
                     <td className="md3-table-td text-right">
                       <button
                         onClick={() => removeItem(item.id)}

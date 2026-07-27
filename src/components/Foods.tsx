@@ -7,6 +7,7 @@ import { useToast } from './ui/ToastProvider';
 import { useConfirm } from './ui/ConfirmProvider';
 import { Skeleton, SkeletonTableRows } from './ui/Skeleton';
 import { extractFoodFromPhotos } from '../utils/gemini';
+import { MACRO_CARD_CLASSES } from '../config/macroColors';
 
 const fileToBase64 = (file: File): Promise<{ data: string; mimeType: string }> => {
   return new Promise((resolve, reject) => {
@@ -651,8 +652,8 @@ export const Foods: React.FC = () => {
             <tbody>
               {isLoadingFoods ? (
                 <SkeletonTableRows rows={6} columns={8} />
-              ) : filteredFoods.map((food, index) => (
-                <tr key={food.id} className={`md3-table-tr ${index % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
+              ) : filteredFoods.map((food) => (
+                <tr key={food.id} className="md3-table-tr">
                   <td className="md3-table-td font-medium">
                     {editingId === food.id ? (
                       <input
@@ -690,18 +691,20 @@ export const Foods: React.FC = () => {
                       {getCategoryLabel(food.category)}
                     </span>
                   </td>
-                  <td className="md3-table-td font-bold text-sage-900 dark:text-sage-50">
+                  <td className="md3-table-td">
                     {editingId === food.id ? (
                       <input
                         type="number"
                         value={editFood.calories}
                         onChange={(e) => setEditFood(prev => ({ ...prev, calories: parseFloat(e.target.value) || 0 }))}
-                        className="md3-input py-1 px-2 text-sm w-20"
+                        className="py-1 px-3 text-sm w-20 font-black rounded-full border-none bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100 focus:ring-2 focus:ring-primary-500 transition-all"
                         min="0"
                         step="0.1"
                       />
                     ) : (
-                      food.calories.toFixed(1)
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100">
+                        {food.calories.toFixed(1)}
+                      </span>
                     )}
                   </td>
                   <td className="md3-table-td">
@@ -710,12 +713,14 @@ export const Foods: React.FC = () => {
                         type="number"
                         value={editFood.carbs}
                         onChange={(e) => setEditFood(prev => ({ ...prev, carbs: parseFloat(e.target.value) || 0 }))}
-                        className="md3-input py-1 px-2 text-sm w-16"
+                        className="py-1 px-3 text-sm w-16 font-black rounded-full border-none bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 focus:ring-2 focus:ring-primary-500 transition-all"
                         min="0"
                         step="0.1"
                       />
                     ) : (
-                      food.carbs.toFixed(1)
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.carbs.bg} ${MACRO_CARD_CLASSES.carbs.textStrong}`}>
+                        {food.carbs.toFixed(1)}g
+                      </span>
                     )}
                   </td>
                   <td className="md3-table-td">
@@ -724,12 +729,14 @@ export const Foods: React.FC = () => {
                         type="number"
                         value={editFood.proteins}
                         onChange={(e) => setEditFood(prev => ({ ...prev, proteins: parseFloat(e.target.value) || 0 }))}
-                        className="md3-input py-1 px-2 text-sm w-16"
+                        className="py-1 px-3 text-sm w-16 font-black rounded-full border-none bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 focus:ring-2 focus:ring-primary-500 transition-all"
                         min="0"
                         step="0.1"
                       />
                     ) : (
-                      food.proteins.toFixed(1)
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.proteins.bg} ${MACRO_CARD_CLASSES.proteins.textStrong}`}>
+                        {food.proteins.toFixed(1)}g
+                      </span>
                     )}
                   </td>
                   <td className="md3-table-td">
@@ -738,12 +745,14 @@ export const Foods: React.FC = () => {
                         type="number"
                         value={editFood.fats}
                         onChange={(e) => setEditFood(prev => ({ ...prev, fats: parseFloat(e.target.value) || 0 }))}
-                        className="md3-input py-1 px-2 text-sm w-16"
+                        className="py-1 px-3 text-sm w-16 font-black rounded-full border-none bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 focus:ring-2 focus:ring-primary-500 transition-all"
                         min="0"
                         step="0.1"
                       />
                     ) : (
-                      food.fats.toFixed(1)
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.fats.bg} ${MACRO_CARD_CLASSES.fats.textStrong}`}>
+                        {food.fats.toFixed(1)}g
+                      </span>
                     )}
                   </td>
                   <td className="md3-table-td text-right">

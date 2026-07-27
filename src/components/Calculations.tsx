@@ -599,21 +599,21 @@ export const Calculations: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {daysOfWeek.map((day, idx) => {
+                    {daysOfWeek.map((day) => {
                       const dayTarget = dailyCalorieLimits[day] || 0;
                       const dayTotal = getDayMealTotal(day);
                       const remaining = dayTarget - dayTotal;
                       const hasTarget = dayTarget > 0;
                       const isAligned = hasTarget && Math.abs(remaining) <= 50;
                       return (
-                        <tr key={day} className={`md3-table-tr ${idx % 2 === 0 ? '' : 'md3-table-tr-even'}`}>
+                        <tr key={day} className="md3-table-tr">
                           <td className="md3-table-td font-bold text-sage-900 dark:text-sage-100">{day}</td>
                           <td className="md3-table-td p-2">
                             <input
                               type="number"
                               value={dailyCalorieLimits[day] || ''}
                               onChange={(e) => handleDailyLimitChange(day, e.target.value)}
-                              className="md3-input w-full max-w-[130px] mx-auto py-1.5 text-center font-bold"
+                              className="w-full max-w-[110px] mx-auto block py-1.5 text-center font-black text-sm rounded-full border-none bg-accent-100 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 placeholder-accent-400/60 focus:ring-2 focus:ring-accent-500 transition-all"
                               placeholder="kcal"
                             />
                           </td>
@@ -623,7 +623,7 @@ export const Calculations: React.FC = () => {
                                 type="number"
                                 value={dailyMealKcal[day]?.[meal] || ''}
                                 onChange={(e) => handleMealKcalChange(day, meal, e.target.value)}
-                                className="md3-input w-full py-1 text-center text-xs font-bold"
+                                className="w-full block py-1.5 text-center text-xs font-black rounded-full border-none bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100 placeholder-sage-400 focus:ring-2 focus:ring-primary-500 transition-all"
                                 placeholder="kcal"
                               />
                             </td>
@@ -648,14 +648,35 @@ export const Calculations: React.FC = () => {
                         </tr>
                       );
                     })}
-                    <tr className="bg-primary-50 dark:bg-primary-900/20 font-bold">
-                      <td className="md3-table-td text-primary-900 dark:text-primary-100" colSpan={1 + activeMealList.length}>Totale Settimanale Effettivo</td>
-                      <td className="md3-table-td text-primary-900 dark:text-primary-100 font-black text-xl">{getTotalWeeklyLimit()} <span className="text-sm">kcal</span></td>
-                    </tr>
-                    <tr className="bg-accent-50 dark:bg-accent-900/20 font-bold">
-                      <td className="md3-table-td text-accent-900 dark:text-accent-100" colSpan={1 + activeMealList.length}>Calcolo Teorico</td>
-                      <td className="md3-table-td text-accent-900 dark:text-accent-100 font-black text-xl">{Math.round(results.weeklyCalories)} <span className="text-sm">kcal</span></td>
-                    </tr>
+                    {(() => {
+                      const weeklyTotal = getTotalWeeklyLimit();
+                      const theoreticalWeekly = Math.round(results.weeklyCalories);
+                      const weeklyDiff = weeklyTotal - theoreticalWeekly;
+                      const isWeeklyAligned = weeklyTotal > 0 && Math.abs(weeklyDiff) <= 100;
+                      return (
+                        <>
+                          <tr className="bg-primary-50 dark:bg-primary-900/20 font-bold">
+                            <td className="md3-table-td text-primary-900 dark:text-primary-100" colSpan={2 + activeMealList.length}>Totale Settimanale Effettivo</td>
+                            <td className="md3-table-td text-primary-900 dark:text-primary-100">
+                              <p className="font-black text-xl">{weeklyTotal} <span className="text-sm">kcal</span></p>
+                              {weeklyTotal > 0 && (
+                                <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                  isWeeklyAligned
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                    : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                                }`}>
+                                  {isWeeklyAligned ? 'In linea' : weeklyDiff > 0 ? `+${weeklyDiff} vs teorico` : `${weeklyDiff} vs teorico`}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                          <tr className="bg-accent-50 dark:bg-accent-900/20 font-bold">
+                            <td className="md3-table-td text-accent-900 dark:text-accent-100" colSpan={2 + activeMealList.length}>Calcolo Teorico</td>
+                            <td className="md3-table-td text-accent-900 dark:text-accent-100 font-black text-xl">{theoreticalWeekly} <span className="text-sm">kcal</span></td>
+                          </tr>
+                        </>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>
