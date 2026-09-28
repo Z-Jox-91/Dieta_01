@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, GraduationCap, ChevronDown, ChevronUp } from 'lucide-react';
 import { DaySelector } from './diet/DaySelector';
 import { MealSection } from './diet/MealSection';
@@ -214,13 +214,13 @@ export const Diet: React.FC = () => {
     <div className="space-y-8">
       {/* Week Navigation */}
       <div className="md3-card p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center space-x-3">
-            <Calendar className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            <h2 className="text-xl font-bold text-sage-900 dark:text-sage-50 mb-0">Piano Alimentare</h2>
+            <Calendar className="w-6 h-6 text-primary-600 dark:text-primary-400 flex-shrink-0" />
+            <h2 className="text-xl font-bold text-sage-900 dark:text-sage-50 mb-0 whitespace-nowrap">Piano Alimentare</h2>
           </div>
-          
-          <div className="flex items-center space-x-4">
+
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <button
               onClick={() => setCurrentWeek(prev => prev - 1)}
               className="p-2 text-sage-600 dark:text-sage-400 hover:text-sage-900 dark:hover:text-sage-100 hover:bg-sage-100 dark:hover:bg-surface-container-dark rounded-lg transition-colors duration-200"
@@ -252,21 +252,21 @@ export const Diet: React.FC = () => {
       </div>
 
       {/* Guida per principianti: come si compone un pasto equilibrato */}
-      <div className="md3-card border border-primary-100 dark:border-primary-900/30">
+      <div className="md3-card">
         <button
           onClick={() => setShowGuide(!showGuide)}
-          className="w-full p-5 flex items-center justify-between text-left"
+          className="w-full p-5 flex items-center justify-between gap-3 text-left"
         >
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-md3-small flex items-center justify-center">
-              <GraduationCap className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="w-10 h-10 bg-sage-100 dark:bg-surface-container-dark rounded-md3-small flex items-center justify-center flex-shrink-0">
+              <GraduationCap className="w-5 h-5 text-sage-500 dark:text-sage-400" />
             </div>
             <div>
-              <h3 className="font-bold text-sage-900 dark:text-sage-50 mb-0">Non sai come comporre un pasto equilibrato?</h3>
+              <h3 className="text-base sm:text-lg font-bold text-sage-900 dark:text-sage-50 mb-0">Non sai come comporre un pasto equilibrato?</h3>
               <p className="text-xs text-sage-500 dark:text-sage-400">Guida rapida basata sulle Linee guida CREA per una sana alimentazione</p>
             </div>
           </div>
-          {showGuide ? <ChevronUp className="w-5 h-5 text-sage-400" /> : <ChevronDown className="w-5 h-5 text-sage-400" />}
+          {showGuide ? <ChevronUp className="w-5 h-5 text-sage-400 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 text-sage-400 flex-shrink-0" />}
         </button>
 
         {showGuide && (
@@ -279,19 +279,19 @@ export const Diet: React.FC = () => {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-primary-50 dark:bg-primary-900/10 p-4 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
-                <p className="text-xs font-black uppercase tracking-widest text-primary-700 dark:text-primary-300 mb-1">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-primary-700 dark:text-primary-300 mb-1">
                   Carboidrati • {CREA_RANGES.carbs.min}–{CREA_RANGES.carbs.max}%
                 </p>
                 <p className="text-sm text-sage-700 dark:text-sage-300">{FOOD_EXAMPLES.carbs}</p>
               </div>
               <div className="bg-accent-50 dark:bg-accent-900/10 p-4 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
-                <p className="text-xs font-black uppercase tracking-widest text-accent-700 dark:text-accent-300 mb-1">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-accent-700 dark:text-accent-300 mb-1">
                   Proteine • {CREA_RANGES.proteins.min}–{CREA_RANGES.proteins.max}%
                 </p>
                 <p className="text-sm text-sage-700 dark:text-sage-300">{FOOD_EXAMPLES.proteins}</p>
               </div>
               <div className="bg-sage-50 dark:bg-sage-900/20 p-4 rounded-md3-medium border border-sage-200 dark:border-sage-800">
-                <p className="text-xs font-black uppercase tracking-widest text-sage-700 dark:text-sage-300 mb-1">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-sage-700 dark:text-sage-300 mb-1">
                   Grassi • {CREA_RANGES.fats.min}–{CREA_RANGES.fats.max}%
                 </p>
                 <p className="text-sm text-sage-700 dark:text-sage-300">{FOOD_EXAMPLES.fats}</p>

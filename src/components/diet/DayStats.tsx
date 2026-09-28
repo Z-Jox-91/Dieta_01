@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Zap, Target } from 'lucide-react';
 import { db, auth } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -78,15 +78,15 @@ export const DayStats: React.FC<DayStatsProps> = ({ dayData, selectedDay }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="md3-card p-6 border border-primary-100 dark:border-primary-800/30">
+      <div className="md3-card p-6">
         <div className="flex items-center space-x-3 mb-2">
-          <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-md3-small flex items-center justify-center">
-            <Zap className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+          <div className="w-10 h-10 bg-sage-100 dark:bg-surface-container-dark rounded-md3-small flex items-center justify-center">
+            <Zap className="w-5 h-5 text-sage-500 dark:text-sage-400" />
           </div>
           <h3 className="text-lg font-bold text-sage-900 dark:text-sage-50 mb-0">Calorie Totali</h3>
         </div>
         <div className="flex items-end space-x-2 mt-3">
-          <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(totalCalories)}</p>
+          <p className="text-3xl font-extrabold text-sage-900 dark:text-sage-50">{Math.round(totalCalories)}</p>
           {calorieLimit && (
             <p className="text-lg text-sage-500 dark:text-sage-400 mb-1">/ {calorieLimit} kcal</p>
           )}
@@ -112,15 +112,15 @@ export const DayStats: React.FC<DayStatsProps> = ({ dayData, selectedDay }) => {
         )}
       </div>
 
-      <div className="md3-card p-6 border border-accent-100 dark:border-accent-800/30">
+      <div className="md3-card p-6">
         <div className="flex items-center space-x-3 mb-2">
-          <div className="w-10 h-10 bg-accent-100 dark:bg-accent-900/30 rounded-md3-small flex items-center justify-center">
-            <Target className="w-5 h-5 text-accent-600 dark:text-accent-400" />
+          <div className="w-10 h-10 bg-sage-100 dark:bg-surface-container-dark rounded-md3-small flex items-center justify-center">
+            <Target className="w-5 h-5 text-sage-500 dark:text-sage-400" />
           </div>
           <h3 className="text-lg font-bold text-sage-900 dark:text-sage-50 mb-0">Proteine Totali</h3>
         </div>
         <div className="flex items-end space-x-2 mt-3">
-          <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{totalProteins.toFixed(1)}</p>
+          <p className="text-3xl font-extrabold text-sage-900 dark:text-sage-50">{totalProteins.toFixed(1)}</p>
           {proteinGoal && (
             <p className="text-lg text-sage-500 dark:text-sage-400 mb-1">/ {proteinGoal.toFixed(1)} g</p>
           )}

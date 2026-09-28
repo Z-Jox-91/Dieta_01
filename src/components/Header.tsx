@@ -65,10 +65,11 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogout, activeTab, onTab
                       onClick={() => onTabChange!(tab.id)}
                       className={`flex items-center space-x-2 px-4 xl:px-5 py-2 rounded-full font-bold text-sm whitespace-nowrap transition-all duration-300 ${
                         isActive
-                          ? 'bg-primary-600 dark:bg-primary-500 text-white shadow-md3-2'
-                          : 'text-sage-600 dark:text-sage-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 hover:text-primary-700 dark:hover:text-primary-300'
+                          ? 'bg-white dark:bg-surface-dark text-sage-900 dark:text-sage-50 shadow-md3-1'
+                          : 'text-sage-500 dark:text-sage-400 hover:text-sage-800 dark:hover:text-sage-100'
                       }`}
                     >
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors ${isActive ? 'bg-primary-600 dark:bg-primary-400' : 'bg-transparent'}`} />
                       <Icon className="w-4 h-4 flex-shrink-0" />
                       <span>{tab.label}</span>
                     </button>

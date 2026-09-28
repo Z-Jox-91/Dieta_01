@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, Scale, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { FoodAutocomplete, FoodOption } from './FoodAutocomplete';
 import { PortionOptimizer } from './PortionOptimizer';
@@ -170,10 +170,10 @@ export const MealSection: React.FC<MealSectionProps> = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <h3 className="text-xl font-black text-sage-900 dark:text-sage-50 tracking-tight mb-0">{title}</h3>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h3 className="text-xl font-extrabold text-sage-900 dark:text-sage-50 tracking-tight mb-0">{title}</h3>
             {!balance.isEmpty && (
-              <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+              <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest whitespace-nowrap ${
                 balance.isBalanced
                   ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                   : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
@@ -185,7 +185,7 @@ export const MealSection: React.FC<MealSectionProps> = ({
           </div>
           <div className="flex items-center space-x-6">
             <div className="text-right hidden sm:block">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 mb-0.5">Totale Pasto</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-primary-600 dark:text-primary-400 mb-0.5">Totale Pasto</p>
               <p className="text-sm font-bold text-sage-700 dark:text-sage-300">
                 {Math.round(totals.calories)}{hasTarget ? ` / ${targetKcal} kcal` : ' kcal'} • {totals.proteins.toFixed(1)}g proteine
               </p>
@@ -214,10 +214,10 @@ export const MealSection: React.FC<MealSectionProps> = ({
                 : 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30'
             }`}>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-sage-500 dark:text-sage-400 mb-0.5">Totale / Target Calcoli</p>
-                <p className="text-lg font-black text-sage-900 dark:text-sage-50">{Math.round(totals.calories)} <span className="text-sm font-normal text-sage-500">/ {targetKcal} kcal</span></p>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-sage-500 dark:text-sage-400 mb-0.5">Totale / Target Calcoli</p>
+                <p className="text-lg font-extrabold text-sage-900 dark:text-sage-50">{Math.round(totals.calories)} <span className="text-sm font-normal text-sage-500">/ {targetKcal} kcal</span></p>
               </div>
-              <span className={`text-xs font-black uppercase tracking-widest ${isKcalAligned ? 'text-green-700 dark:text-green-300' : 'text-orange-700 dark:text-orange-300'}`}>
+              <span className={`text-xs font-extrabold uppercase tracking-widest ${isKcalAligned ? 'text-green-700 dark:text-green-300' : 'text-orange-700 dark:text-orange-300'}`}>
                 {isKcalAligned ? 'In linea' : kcalDiff > 0 ? `+${kcalDiff}` : `${kcalDiff}`}
               </span>
             </div>
@@ -225,54 +225,54 @@ export const MealSection: React.FC<MealSectionProps> = ({
 
           {/* Layout Desktop */}
           <div className="hidden lg:block md3-table-container mb-6">
-            <table className="md3-table">
+            <table className="md3-table min-w-[820px]">
               <thead className="md3-table-header">
                 <tr>
-                  <th className="md3-table-th w-1/3">Alimento</th>
-                  <th className="md3-table-th text-center">Peso (g)</th>
-                  <th className="md3-table-th text-center">Energia (kcal)</th>
-                  <th className="md3-table-th text-center">Proteine</th>
-                  <th className="md3-table-th text-center">Carboidrati</th>
-                  <th className="md3-table-th text-center">Lipidi</th>
+                  <th className="md3-table-th md3-table-th-sticky w-[280px]">Alimento</th>
+                  <th className="md3-table-th md3-table-th-num">Peso (g)</th>
+                  <th className="md3-table-th md3-table-th-num">Energia (kcal)</th>
+                  <th className="md3-table-th md3-table-th-num">Proteine</th>
+                  <th className="md3-table-th md3-table-th-num">Carboidrati</th>
+                  <th className="md3-table-th md3-table-th-num">Lipidi</th>
                   <th className="md3-table-th text-right"></th>
                 </tr>
               </thead>
               <tbody>
                 {mealData.map((item) => (
                   <tr key={item.id} className="md3-table-tr">
-                    <td className="md3-table-td">
+                    <td className="md3-table-td md3-table-td-sticky">
                       <FoodAutocomplete
                         value={item.food}
                         onSelect={(food) => handleFoodSelect(item, food)}
                       />
                     </td>
-                    <td className="md3-table-td text-center">
+                    <td className="md3-table-td text-right">
                       <input
                         type="number"
                         value={item.grams || ''}
                         onChange={(e) => handleGramsChange(item, e.target.value)}
-                        className="py-1.5 px-3 text-center w-24 font-black rounded-full border-none bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100 placeholder-sage-400 focus:ring-2 focus:ring-primary-500 transition-all"
+                        className="py-1.5 px-3 text-center w-24 font-extrabold rounded-full border-none bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100 placeholder-sage-400 focus:ring-2 focus:ring-primary-500 transition-all"
                         placeholder="0"
                         min="0"
                       />
                     </td>
-                    <td className="md3-table-td text-center">
-                      <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100">
+                    <td className="md3-table-td text-right">
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100">
                         {Math.round(item.calories || 0)}
                       </span>
                     </td>
-                    <td className="md3-table-td text-center">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.proteins.bg} ${MACRO_CARD_CLASSES.proteins.textStrong}`}>
+                    <td className="md3-table-td text-right">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${MACRO_CARD_CLASSES.proteins.bg} ${MACRO_CARD_CLASSES.proteins.textStrong}`}>
                         {(item.proteins || 0).toFixed(1)}g
                       </span>
                     </td>
-                    <td className="md3-table-td text-center">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.carbs.bg} ${MACRO_CARD_CLASSES.carbs.textStrong}`}>
+                    <td className="md3-table-td text-right">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${MACRO_CARD_CLASSES.carbs.bg} ${MACRO_CARD_CLASSES.carbs.textStrong}`}>
                         {(item.carbs || 0).toFixed(1)}g
                       </span>
                     </td>
-                    <td className="md3-table-td text-center">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.fats.bg} ${MACRO_CARD_CLASSES.fats.textStrong}`}>
+                    <td className="md3-table-td text-right">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${MACRO_CARD_CLASSES.fats.bg} ${MACRO_CARD_CLASSES.fats.textStrong}`}>
                         {(item.fats || 0).toFixed(1)}g
                       </span>
                     </td>
@@ -296,7 +296,7 @@ export const MealSection: React.FC<MealSectionProps> = ({
             {mealData.map((item) => (
               <div key={item.id} className="bg-sage-50/50 dark:bg-surface-container-dark/50 rounded-md3-medium p-4 border border-sage-100 dark:border-sage-800">
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-sage-500">Dettaglio Alimento</span>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-sage-500">Dettaglio Alimento</span>
                   <button onClick={() => removeItem(item.id)} className="text-red-500 p-2" title="Rimuovi alimento"><Trash2 className="w-4 h-4" /></button>
                 </div>
                 <div className="space-y-4">
@@ -306,7 +306,7 @@ export const MealSection: React.FC<MealSectionProps> = ({
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-sage-500 ml-1">Grammi</label>
+                      <label className="text-[10px] font-extrabold uppercase tracking-widest text-sage-500 ml-1">Grammi</label>
                       <input
                         type="number"
                         value={item.grams || ''}
@@ -316,8 +316,8 @@ export const MealSection: React.FC<MealSectionProps> = ({
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-sage-500 ml-1">Kcal</label>
-                      <div className="md3-input w-full py-2 bg-sage-100 dark:bg-surface-dark font-black text-center">{Math.round(item.calories || 0)}</div>
+                      <label className="text-[10px] font-extrabold uppercase tracking-widest text-sage-500 ml-1">Kcal</label>
+                      <div className="md3-input w-full py-2 bg-sage-100 dark:bg-surface-dark font-extrabold text-center">{Math.round(item.calories || 0)}</div>
                     </div>
                   </div>
                 </div>
@@ -354,11 +354,11 @@ export const MealSection: React.FC<MealSectionProps> = ({
                       {ev.status !== 'ok' && (
                         <AlertTriangle className="absolute top-3 right-3 w-4 h-4 text-orange-500" />
                       )}
-                      <p className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest mb-1 ${c.textStrong}`}>
+                      <p className={`flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-widest mb-1 ${c.textStrong}`}>
                         <MacroIcon macro={ev.macro} className="w-3.5 h-3.5 flex-shrink-0" />
                         {MACRO_LABELS[ev.macro]}
                       </p>
-                      <p className="text-xl font-black text-sage-900 dark:text-sage-50">{grams.toFixed(1)} <span className="text-xs">g</span></p>
+                      <p className="text-xl font-extrabold text-sage-900 dark:text-sage-50">{grams.toFixed(1)} <span className="text-xs">g</span></p>
                       <p className={`text-[10px] font-bold ${c.text}`}>{ev.percent.toFixed(0)}% (CREA: {ev.range.min}–{ev.range.max}%)</p>
                     </div>
                   );

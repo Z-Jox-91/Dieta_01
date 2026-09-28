@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight, User } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -109,7 +109,7 @@ export const Login: React.FC<LoginProps> = ({ onAuth }) => {
           <div className="w-20 h-20 bg-primary-500 rounded-md3-medium mx-auto mb-6 flex items-center justify-center shadow-md3-3">
             <Logo className="w-12 h-12" />
           </div>
-          <h2 className="text-3xl font-black text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Cunzari</h2>
+          <h2 className="text-3xl font-extrabold text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Cunzari</h2>
           <p className="text-sage-600 dark:text-sage-400 font-medium">Ogni pasto, cunzato a puntino</p>
         </div>
 
@@ -249,7 +249,7 @@ export const Login: React.FC<LoginProps> = ({ onAuth }) => {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-[10px] text-sage-400 uppercase font-black tracking-widest">
+          <p className="text-[10px] text-sage-400 uppercase font-extrabold tracking-widest">
             Powered by Google Firebase &amp; Gemini AI
           </p>
         </div>

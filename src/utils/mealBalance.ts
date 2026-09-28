@@ -33,6 +33,16 @@ export const CREA_TARGET = {
   fatsPercent: 30,
 };
 
+/** Categoria macro-prevalente di un alimento, dedotta dalle kcal apportate da ciascun macronutriente. */
+export const calculateFoodCategory = (carbs: number, proteins: number, fats: number): 'CRB' | 'PRT' | 'LPD' => {
+  const carbCalories = carbs * 4;
+  const proteinCalories = proteins * 4;
+  const fatCalories = fats * 9;
+  if (carbCalories >= proteinCalories && carbCalories >= fatCalories) return 'CRB';
+  if (proteinCalories >= fatCalories) return 'PRT';
+  return 'LPD';
+};
+
 /** Esempi di alimenti per ciascun gruppo, usati nei suggerimenti. */
 export const FOOD_EXAMPLES: Record<MacroKey, string> = {
   carbs: 'pane integrale, pasta, riso, farro, patate, frutta',

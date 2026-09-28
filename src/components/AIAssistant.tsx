@@ -12,11 +12,14 @@ export const AIAssistant: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [foods, setFoods] = useState<FoodItem[]>([]);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [calcResults, setCalcResults] = useState<any>(null);
+  const [mealTargets, setMealTargets] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Carica database alimenti e profilo utente per il contesto
+  // Carica database alimenti e i target reali calcolati nella scheda Calcoli, così
+  // l'assistente può proporre pasti che rispettano davvero kcal e macro dell'utente
+  // (prima riceveva solo "preferenze"/"obiettivi" che nessuna pagina scriveva mai).
   useEffect(() => {
     if (!auth.currentUser) return;
 
@@ -26,10 +29,16 @@ export const AIAssistant: React.FC = () => {
       setFoods(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as FoodItem));
     });
 
-    // User Profile
-    const userRef = doc(db, 'users', auth.currentUser.uid);
-    const unsubscribeUser = onSnapshot(userRef, (doc) => {
-      if (doc.exists()) setUserProfile(doc.data());
+    // Risultati Calcoli (BMI, TDEE, deficit, target proteico)
+    const calcRef = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
+    const unsubscribeCalc = onSnapshot(calcRef, (snap) => {
+      setCalcResults(snap.exists() ? snap.data().results : null);
+    });
+
+    // Target kcal per pasto e pasti attivi, impostati sempre in Calcoli
+    const mealParamsRef = doc(db, `users/${auth.currentUser.uid}/data/meal_parameters`);
+    const unsubscribeMealParams = onSnapshot(mealParamsRef, (snap) => {
+      setMealTargets(snap.exists() ? snap.data() : null);
     });
 
     // Chat History
@@ -47,7 +56,8 @@ export const AIAssistant: React.FC = () => {
 
     return () => {
       unsubscribeFoods();
-      unsubscribeUser();
+      unsubscribeCalc();
+      unsubscribeMealParams();
       unsubscribeChat();
     };
   }, []);
@@ -80,11 +90,19 @@ export const AIAssistant: React.FC = () => {
         timestamp: serverTimestamp() 
       });
 
-      // Otteniamo l'ultima cronologia per passarla a Gemini
+      // Otteniamo l'ultima cronologia per passarla a Gemini, insieme ai target
+      // reali calcolati in Calcoli (prima l'assistente non li riceveva affatto)
+      const dietGoals = calcResults ? {
+        metabolismoBasale: Math.round(calcResults.basalMetabolism || 0),
+        fabbisognoGiornaliero: Math.round(calcResults.dailyMetabolism || 0),
+        targetCalorieGiornaliero: Math.round((calcResults.dailyMetabolism || 0) - (calcResults.dailyDeficit || 0)),
+        targetProteicoGiornaliero: Math.round(calcResults.dailyProteinRda || 0),
+        kcalPerPastoPerGiorno: mealTargets?.dailyMealKcal || null,
+      } : null;
+
       const responseText = await sendMessageToGemini(messages, currentInput, {
         foods,
-        userPreferences: userProfile?.preferences,
-        dietGoals: userProfile?.goals
+        dietGoals
       });
 
       // Salva la risposta dell'assistente su Firestore

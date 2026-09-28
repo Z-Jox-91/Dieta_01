@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, enableIndexedDbPersistence, connectFirestoreEmulator } from 'firebase/firestore';
 
 // Verifica che tutte le variabili d'ambiente Firebase siano configurate
 const requiredEnvVars = [
@@ -40,18 +40,30 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Abilita la persistenza offline
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    // Multiple tabs open, persistence can only be enabled
-    // in one tab at a a time.
-    console.warn('Persistenza Firestore: Multi-tab non supportato');
-  } else if (err.code === 'unimplemented') {
-    // The current browser does not support all of the
-    // features required to enable persistence
-    console.warn('Persistenza Firestore: Browser non supportato');
-  }
-});
+// Emulatori locali (Auth + Firestore): permettono di sviluppare e testare login
+// e dati reali senza chiavi vere e senza toccare il progetto Firebase di
+// produzione. Si attivano solo con VITE_USE_FIREBASE_EMULATOR=true in .env
+// (di norma solo in locale) — vedi npm run emulators / npm run dev:emulator.
+const useEmulator = import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
+
+if (useEmulator) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  console.log('🧪 Firebase in modalità EMULATORE (Auth :9099, Firestore :8080) — nessun dato reale coinvolto.');
+} else {
+  // Abilita la persistenza offline (non supportata/non necessaria con l'emulatore)
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      // Multiple tabs open, persistence can only be enabled
+      // in one tab at a a time.
+      console.warn('Persistenza Firestore: Multi-tab non supportato');
+    } else if (err.code === 'unimplemented') {
+      // The current browser does not support all of the
+      // features required to enable persistence
+      console.warn('Persistenza Firestore: Browser non supportato');
+    }
+  });
+}
 
 if (import.meta.env.DEV) {
   console.log('Firebase in modalità sviluppo - progetto:', firebaseConfig.projectId);

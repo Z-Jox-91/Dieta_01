@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Check } from 'lucide-react';
 import { db, auth } from '../../firebase';
@@ -205,7 +205,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({ value, onSel
               {food.name === value && <Check className="w-3 h-3 mr-1 text-primary-500 flex-shrink-0" />}
               {food.name}
             </div>
-            <div className="text-[10px] uppercase tracking-widest font-black text-sage-500 dark:text-sage-400 mt-1">
+            <div className="text-[10px] uppercase tracking-widest font-extrabold text-sage-500 dark:text-sage-400 mt-1">
               {Math.round(food.calories)} kcal • P: {food.proteins}g • C: {food.carbs}g • G: {food.fats}g (per 100g)
             </div>
           </div>

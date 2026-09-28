@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Target, Calculator, RefreshCw, Check, TrendingUp, Lightbulb, CheckCircle2 } from 'lucide-react';
 import { FoodMacroProfile, MacroTarget, optimizePortions, OptimizationResult } from '../../utils/portionOptimizer';
 import { CREA_TARGET } from '../../utils/mealBalance';
@@ -116,20 +116,20 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
 
           {/* Target Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-sage-50 dark:bg-sage-900/20 p-4 rounded-2xl border border-sage-100 dark:border-sage-800">
+            <div className="bg-sage-50 dark:bg-surface-container-dark p-4 rounded-2xl border border-sage-100 dark:border-sage-800">
               <label className="block text-[10px] font-bold uppercase tracking-widest text-sage-500 mb-1">Calorie</label>
               <div className="text-xl font-bold text-sage-900 dark:text-sage-50">{target.totalCalories} <span className="text-xs">kcal</span></div>
             </div>
-            <div className="bg-primary-50 dark:bg-primary-900/10 p-4 rounded-2xl border border-primary-100 dark:border-primary-800/30">
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-primary-700 dark:text-primary-300 mb-1">Carbo</label>
+            <div className="bg-sage-50 dark:bg-surface-container-dark p-4 rounded-2xl border border-sage-100 dark:border-sage-800">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-sage-500 mb-1">Carbo</label>
               <div className="text-xl font-bold text-sage-900 dark:text-sage-50">{target.carbsPercent}%</div>
             </div>
-            <div className="bg-accent-50 dark:bg-accent-900/10 p-4 rounded-2xl border border-accent-100 dark:border-accent-800/30">
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-accent-700 dark:text-accent-300 mb-1">Proteine</label>
+            <div className="bg-sage-50 dark:bg-surface-container-dark p-4 rounded-2xl border border-sage-100 dark:border-sage-800">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-sage-500 mb-1">Proteine</label>
               <div className="text-xl font-bold text-sage-900 dark:text-sage-50">{target.proteinsPercent}%</div>
             </div>
-            <div className="bg-primary-50 dark:bg-primary-900/10 p-4 rounded-2xl border border-primary-100 dark:border-primary-800/30">
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-primary-700 dark:text-primary-300 mb-1">Lipidi</label>
+            <div className="bg-sage-50 dark:bg-surface-container-dark p-4 rounded-2xl border border-sage-100 dark:border-sage-800">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-sage-500 mb-1">Lipidi</label>
               <div className="text-xl font-bold text-sage-900 dark:text-sage-50">{target.fatsPercent}%</div>
             </div>
           </div>
@@ -137,7 +137,7 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
           {!result ? (
             <button
               onClick={handleOptimize}
-              className="w-full py-4 bg-accent-500 text-white rounded-2xl font-bold hover:bg-accent-600 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-4 bg-primary-600 dark:bg-primary-500 text-white rounded-2xl font-bold hover:bg-primary-700 transition-all flex items-center justify-center space-x-2"
             >
               <Calculator className="w-5 h-5" />
               <span>Calcola Porzioni Ottimali</span>
@@ -151,7 +151,7 @@ export const PortionOptimizer: React.FC<PortionOptimizerProps> = ({
                     <TrendingUp className={`w-5 h-5 ${result.isFeasible ? 'text-green-500' : 'text-orange-500'}`} />
                     <span className="font-bold text-sage-900 dark:text-sage-100">Accuratezza Soluzione</span>
                   </div>
-                  <span className={`text-lg font-black ${result.accuracy > 90 ? 'text-green-500' : result.accuracy > 70 ? 'text-orange-500' : 'text-red-500'}`}>
+                  <span className={`text-lg font-extrabold ${result.accuracy > 90 ? 'text-green-500' : result.accuracy > 70 ? 'text-orange-500' : 'text-red-500'}`}>
                     {Math.round(result.accuracy)}%
                   </span>
                 </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Plus, Upload, Trash2, Edit3, Save, X, CheckCircle, Camera, Sparkles, Loader2, ImagePlus } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db, auth } from '../firebase';
@@ -8,6 +8,7 @@ import { useConfirm } from './ui/ConfirmProvider';
 import { Skeleton, SkeletonTableRows } from './ui/Skeleton';
 import { extractFoodFromPhotos } from '../utils/gemini';
 import { MACRO_CARD_CLASSES } from '../config/macroColors';
+import { calculateFoodCategory } from '../utils/mealBalance';
 
 const fileToBase64 = (file: File): Promise<{ data: string; mimeType: string }> => {
   return new Promise((resolve, reject) => {
@@ -148,21 +149,6 @@ export const Foods: React.FC = () => {
     }
   };
 
-  // Calcola automaticamente la categoria basata sui macronutrienti
-  const calculateCategory = (carbs: number, proteins: number, fats: number): 'CRB' | 'PRT' | 'LPD' => {
-    const carbCalories = carbs * 4;
-    const proteinCalories = proteins * 4;
-    const fatCalories = fats * 9;
-
-    if (carbCalories >= proteinCalories && carbCalories >= fatCalories) {
-      return 'CRB';
-    } else if (proteinCalories >= fatCalories) {
-      return 'PRT';
-    } else {
-      return 'LPD';
-    }
-  };
-
   // Gestisce il caricamento del file Excel
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -188,7 +174,7 @@ export const Foods: React.FC = () => {
         
         await setDoc(foodRef, {
           name,
-          category: row.category || calculateCategory(carbs, proteins, fats),
+          category: row.category || calculateFoodCategory(carbs, proteins, fats),
           calories: parseFloat(row.calories || row.energia || 0),
           carbs,
           proteins,
@@ -272,7 +258,7 @@ export const Foods: React.FC = () => {
       return;
     }
 
-    const category = calculateCategory(newFood.carbs, newFood.proteins, newFood.fats);
+    const category = calculateFoodCategory(newFood.carbs, newFood.proteins, newFood.fats);
     const foodId = `new_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     try {
@@ -344,7 +330,7 @@ export const Foods: React.FC = () => {
   const saveEdit = async () => {
     if (!editFood.name.trim() || !editingId || !auth.currentUser) return;
 
-    const category = calculateCategory(editFood.carbs, editFood.proteins, editFood.fats);
+    const category = calculateFoodCategory(editFood.carbs, editFood.proteins, editFood.fats);
     
     try {
       await setDoc(doc(db, 'alimenti', editingId), {
@@ -402,7 +388,7 @@ export const Foods: React.FC = () => {
     <div className="space-y-8">
       {/* Header */}
       <div className="md3-card p-6 sm:p-8 border border-sage-200 dark:border-sage-800">
-        <h1 className="text-2xl font-black text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Database Alimenti</h1>
+        <h1 className="text-2xl font-extrabold text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Database Alimenti</h1>
         <p className="text-sage-600 dark:text-sage-400">Gestisci il tuo database personalizzato di alimenti con le relative proprietà nutrizionali.</p>
       </div>
 
@@ -615,7 +601,7 @@ export const Foods: React.FC = () => {
             <div className="flex space-x-2 mt-4">
               <button
                 onClick={handleAddFood}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                className="flex items-center space-x-2 px-5 py-2.5 bg-green-600 text-white rounded-full font-bold text-sm hover:bg-green-700 transition-colors"
               >
                 <Save className="w-4 h-4" />
                 <span>Salva</span>
@@ -625,7 +611,7 @@ export const Foods: React.FC = () => {
                   setIsAddingNew(false);
                   setNewFood({ name: '', calories: 0, carbs: 0, proteins: 0, fats: 0, unit: 'g' });
                 }}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                className="flex items-center space-x-2 px-5 py-2.5 bg-sage-100 dark:bg-surface-container-dark text-sage-700 dark:text-sage-300 rounded-full font-bold text-sm hover:bg-sage-200 dark:hover:bg-sage-700 transition-colors"
               >
                 <X className="w-4 h-4" />
                 <span>Annulla</span>
@@ -636,16 +622,16 @@ export const Foods: React.FC = () => {
 
         {/* Tabella alimenti - Desktop */}
         <div className="hidden lg:block md3-table-container">
-          <table className="md3-table">
+          <table className="md3-table min-w-[900px]">
             <thead className="md3-table-header">
               <tr>
-                <th className="md3-table-th">Nome</th>
+                <th className="md3-table-th md3-table-th-sticky">Nome</th>
                 <th className="md3-table-th">Unità</th>
                 <th className="md3-table-th">Categoria</th>
-                <th className="md3-table-th">Energia (kcal)</th>
-                <th className="md3-table-th">Carboidrati (g)</th>
-                <th className="md3-table-th">Proteine (g)</th>
-                <th className="md3-table-th">Lipidi (g)</th>
+                <th className="md3-table-th md3-table-th-num">Energia (kcal)</th>
+                <th className="md3-table-th md3-table-th-num">Carboidrati (g)</th>
+                <th className="md3-table-th md3-table-th-num">Proteine (g)</th>
+                <th className="md3-table-th md3-table-th-num">Lipidi (g)</th>
                 <th className="md3-table-th text-right">Azioni</th>
               </tr>
             </thead>
@@ -654,7 +640,7 @@ export const Foods: React.FC = () => {
                 <SkeletonTableRows rows={6} columns={8} />
               ) : filteredFoods.map((food) => (
                 <tr key={food.id} className="md3-table-tr">
-                  <td className="md3-table-td font-medium">
+                  <td className="md3-table-td md3-table-td-sticky font-medium">
                     {editingId === food.id ? (
                       <input
                         type="text"
@@ -666,7 +652,7 @@ export const Foods: React.FC = () => {
                       <div className="flex flex-col">
                         <div className="text-sage-900 dark:text-sage-50">{food.name}</div>
                         {food.creatorId === auth.currentUser?.uid && (
-                          <span className="text-[10px] text-primary-600 dark:text-primary-400 font-black uppercase tracking-tighter">Creato da te</span>
+                          <span className="text-[10px] text-primary-600 dark:text-primary-400 font-extrabold uppercase tracking-tighter">Creato da te</span>
                         )}
                       </div>
                     )}
@@ -687,70 +673,70 @@ export const Foods: React.FC = () => {
                     )}
                   </td>
                   <td className="md3-table-td">
-                    <span className={`inline-flex px-2 py-1 text-[10px] font-black uppercase tracking-widest rounded-full ${getCategoryColor(food.category)}`}>
+                    <span className={`inline-flex px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest rounded-full ${getCategoryColor(food.category)}`}>
                       {getCategoryLabel(food.category)}
                     </span>
                   </td>
-                  <td className="md3-table-td">
+                  <td className="md3-table-td text-right">
                     {editingId === food.id ? (
                       <input
                         type="number"
                         value={editFood.calories}
                         onChange={(e) => setEditFood(prev => ({ ...prev, calories: parseFloat(e.target.value) || 0 }))}
-                        className="py-1 px-3 text-sm w-20 font-black rounded-full border-none bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100 focus:ring-2 focus:ring-primary-500 transition-all"
+                        className="py-1 px-3 text-sm w-20 font-extrabold rounded-full border-none bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100 focus:ring-2 focus:ring-primary-500 transition-all"
                         min="0"
                         step="0.1"
                       />
                     ) : (
-                      <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100">
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100">
                         {food.calories.toFixed(1)}
                       </span>
                     )}
                   </td>
-                  <td className="md3-table-td">
+                  <td className="md3-table-td text-right">
                     {editingId === food.id ? (
                       <input
                         type="number"
                         value={editFood.carbs}
                         onChange={(e) => setEditFood(prev => ({ ...prev, carbs: parseFloat(e.target.value) || 0 }))}
-                        className="py-1 px-3 text-sm w-16 font-black rounded-full border-none bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 focus:ring-2 focus:ring-primary-500 transition-all"
+                        className="py-1 px-3 text-sm w-16 font-extrabold rounded-full border-none bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 focus:ring-2 focus:ring-primary-500 transition-all"
                         min="0"
                         step="0.1"
                       />
                     ) : (
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.carbs.bg} ${MACRO_CARD_CLASSES.carbs.textStrong}`}>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${MACRO_CARD_CLASSES.carbs.bg} ${MACRO_CARD_CLASSES.carbs.textStrong}`}>
                         {food.carbs.toFixed(1)}g
                       </span>
                     )}
                   </td>
-                  <td className="md3-table-td">
+                  <td className="md3-table-td text-right">
                     {editingId === food.id ? (
                       <input
                         type="number"
                         value={editFood.proteins}
                         onChange={(e) => setEditFood(prev => ({ ...prev, proteins: parseFloat(e.target.value) || 0 }))}
-                        className="py-1 px-3 text-sm w-16 font-black rounded-full border-none bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 focus:ring-2 focus:ring-primary-500 transition-all"
+                        className="py-1 px-3 text-sm w-16 font-extrabold rounded-full border-none bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 focus:ring-2 focus:ring-primary-500 transition-all"
                         min="0"
                         step="0.1"
                       />
                     ) : (
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.proteins.bg} ${MACRO_CARD_CLASSES.proteins.textStrong}`}>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${MACRO_CARD_CLASSES.proteins.bg} ${MACRO_CARD_CLASSES.proteins.textStrong}`}>
                         {food.proteins.toFixed(1)}g
                       </span>
                     )}
                   </td>
-                  <td className="md3-table-td">
+                  <td className="md3-table-td text-right">
                     {editingId === food.id ? (
                       <input
                         type="number"
                         value={editFood.fats}
                         onChange={(e) => setEditFood(prev => ({ ...prev, fats: parseFloat(e.target.value) || 0 }))}
-                        className="py-1 px-3 text-sm w-16 font-black rounded-full border-none bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 focus:ring-2 focus:ring-primary-500 transition-all"
+                        className="py-1 px-3 text-sm w-16 font-extrabold rounded-full border-none bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 focus:ring-2 focus:ring-primary-500 transition-all"
                         min="0"
                         step="0.1"
                       />
                     ) : (
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${MACRO_CARD_CLASSES.fats.bg} ${MACRO_CARD_CLASSES.fats.textStrong}`}>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${MACRO_CARD_CLASSES.fats.bg} ${MACRO_CARD_CLASSES.fats.textStrong}`}>
                         {food.fats.toFixed(1)}g
                       </span>
                     )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { CookingPot, Download, Plus, Trash2, Sparkles, Loader2, Info, Check } from 'lucide-react';
 import { FoodAutocomplete, FoodOption } from './diet/FoodAutocomplete';
 import * as XLSX from 'xlsx';
@@ -6,12 +6,13 @@ import { db, auth } from '../firebase';
 import { collection, doc, getDocs, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { generateRecipesWithGemini, RecipeSuggestion } from '../utils/gemini';
 import { MacroTarget } from '../utils/portionOptimizer';
-import { CREA_TARGET, evaluateMealBalance } from '../utils/mealBalance';
+import { CREA_TARGET, evaluateMealBalance, calculateFoodCategory } from '../utils/mealBalance';
 import { MACRO_CARD_CLASSES, MACRO_LABELS } from '../config/macroColors';
 import { MacroDonut } from './diet/MacroDonut';
 import { MacroIcon } from './diet/MacroIcons';
 import { useToast } from './ui/ToastProvider';
 import { useConfirm } from './ui/ConfirmProvider';
+import { SkeletonCard } from './ui/Skeleton';
 
 interface RecipeItem {
   id: string;
@@ -29,13 +30,18 @@ interface RecipeItem {
 }
 
 interface Recipe {
+  id: string;
   name: string;
   ingredients: RecipeItem[];
   totalGrams: number;
   totalCalories: number;
   totalProteins: number;
+  totalCarbs: number;
+  totalFats: number;
   caloriesPer100g: number;
   proteinsPer100g: number;
+  carbsPer100g: number;
+  fatsPer100g: number;
 }
 
 const getBaseValues = (item: RecipeItem) => {
@@ -48,12 +54,29 @@ const getBaseValues = (item: RecipeItem) => {
   };
 };
 
+/** Sentinella dell'opzione "nuova ricetta" nel menu a tendina: nessun id generato può coincidere con questa. */
+const NEW_RECIPE_VALUE = '__new__';
+
+const generateRecipeId = () => `r_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+/** Id deterministico per le ricette del vecchio schema (id = nome): se la migrazione
+ *  viene eseguita due volte in parallelo (doppio montaggio in sviluppo, due schede
+ *  aperte insieme) scrive sullo stesso documento invece di crearne un duplicato. */
+const legacyRecipeId = (name: string) => `legacy_${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+
 export const Recipes: React.FC = () => {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const [recipes, setRecipes] = useState<Record<string, Recipe>>({});
-  const [currentRecipe, setCurrentRecipe] = useState<string>('Nuova Ricetta');
+  // Le ricette sono identificate da un id stabile generato una volta sola, non più
+  // dal nome: prima rinominare una ricetta creava una nuova voce in Firestore
+  // invece di rinominare quella esistente (e la stessa cosa succedeva alla voce
+  // "specchio" nel database alimenti). L'id è sempre pronto fin dal primo render,
+  // così non serve gestire un caso "nessun id ancora" da nessuna parte.
+  const [currentRecipeId, setCurrentRecipeId] = useState<string>(() => generateRecipeId());
+  const [currentRecipeName, setCurrentRecipeName] = useState<string>('');
   const [ingredients, setIngredients] = useState<RecipeItem[]>([]);
+  const [isLoadingRecipes, setIsLoadingRecipes] = useState(true);
 
   // AI Recipe Generation State
   const [isGenerating, setIsGenerating] = useState(false);
@@ -66,19 +89,24 @@ export const Recipes: React.FC = () => {
     fatsPercent: CREA_TARGET.fatsPercent
   });
 
-  // Carica i parametri dal database
+  // Carica il target calorico reale calcolato nella scheda Calcoli.
+  // Nota: prima leggeva un campo "dailyCalories" sul documento utente di primo
+  // livello, che Calcoli non ha mai scritto — il target restava sempre bloccato
+  // al valore di default (2000 kcal). Il risultato vero è salvato in
+  // users/{uid}/data/calculations (results.dailyMetabolism - results.dailyDeficit).
   useEffect(() => {
     const loadUserParams = async () => {
       if (!auth.currentUser) return;
       try {
-        const userDoc = doc(db, 'users', auth.currentUser.uid);
-        const snapshot = await getDoc(userDoc);
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          // Le percentuali di macronutrienti seguono sempre le Linee guida CREA:
-          // solo il totale calorico giornaliero è personalizzabile.
+        const calculationsDoc = doc(db, `users/${auth.currentUser.uid}/data/calculations`);
+        const snapshot = await getDoc(calculationsDoc);
+        // Le percentuali di macronutrienti seguono sempre le Linee guida CREA:
+        // solo il totale calorico giornaliero è personalizzabile.
+        if (snapshot.exists() && snapshot.data().results) {
+          const results = snapshot.data().results;
+          const dailyTarget = Math.round((results.dailyMetabolism || 0) - (results.dailyDeficit || 0));
           setUserTarget({
-            totalCalories: data.dailyCalories || 2000,
+            totalCalories: dailyTarget > 0 ? dailyTarget : 2000,
             carbsPercent: CREA_TARGET.carbsPercent,
             proteinsPercent: CREA_TARGET.proteinsPercent,
             fatsPercent: CREA_TARGET.fatsPercent
@@ -94,7 +122,8 @@ export const Recipes: React.FC = () => {
   // Carica le ricette salvate da Firestore
   useEffect(() => {
     const loadRecipes = async () => {
-      if (!auth.currentUser) return;
+      if (!auth.currentUser) { setIsLoadingRecipes(false); return; }
+      const uid = auth.currentUser.uid;
 
       try {
         // Migrazione da localStorage, se presente
@@ -111,22 +140,54 @@ export const Recipes: React.FC = () => {
           }
         }
 
-        const recipesCollection = collection(db, `users/${auth.currentUser.uid}/recipes`);
+        const recipesCollection = collection(db, `users/${uid}/recipes`);
         const recipesSnapshot = await getDocs(recipesCollection);
 
         const recipesData: Record<string, Recipe> = {};
-        recipesSnapshot.docs.forEach(d => {
-          recipesData[d.id] = d.data() as Recipe;
-        });
+        for (const d of recipesSnapshot.docs) {
+          const data = d.data() as Partial<Recipe> & { name: string };
+          if (data.id) {
+            recipesData[data.id] = data as Recipe;
+          } else {
+            // Schema precedente: il documento era identificato dal nome invece che
+            // da un id stabile. Migra a un id, così una futura ridenominazione non
+            // creerà più una voce orfana.
+            const newId = legacyRecipeId(d.id);
+            // Le ricette del vecchio schema non avevano carboidrati/grassi per 100 g:
+            // li ricalcoliamo dagli ingredienti, così la ricetta è subito richiamabile
+            // come alimento nei pasti.
+            const totals = calculateTotals((data as Recipe).ingredients || []);
+            const migrated: Recipe = {
+              ...(data as Recipe),
+              id: newId,
+              totalGrams: totals.grams,
+              totalCalories: totals.calories,
+              totalProteins: totals.proteins,
+              totalCarbs: totals.carbs,
+              totalFats: totals.fats,
+              caloriesPer100g: totals.caloriesPer100g,
+              proteinsPer100g: totals.proteinsPer100g,
+              carbsPer100g: totals.carbsPer100g,
+              fatsPer100g: totals.fatsPer100g,
+            };
+            await setDoc(doc(db, `users/${uid}/recipes/${newId}`), migrated);
+            await deleteDoc(d.ref);
+            recipesData[newId] = migrated;
+            syncRecipeToFoodDatabase(migrated);
+          }
+        }
 
         if (Object.keys(recipesData).length > 0) {
           setRecipes(recipesData);
-          const recipeNames = Object.keys(recipesData);
-          setCurrentRecipe(recipeNames[0]);
-          setIngredients(recipesData[recipeNames[0]].ingredients);
+          const first = Object.values(recipesData)[0];
+          setCurrentRecipeId(first.id);
+          setCurrentRecipeName(first.name);
+          setIngredients(first.ingredients);
         }
       } catch (error) {
         console.error('Errore nel caricamento delle ricette da Firestore:', error);
+      } finally {
+        setIsLoadingRecipes(false);
       }
     };
 
@@ -164,7 +225,7 @@ export const Recipes: React.FC = () => {
   };
 
   const applyAiRecipe = (suggestion: RecipeSuggestion) => {
-    setCurrentRecipe(suggestion.title);
+    const id = generateRecipeId();
     const newIngredients: RecipeItem[] = suggestion.ingredients.map((ing, idx) => ({
       id: `ai-${Date.now()}-${idx}`,
       food: ing.name,
@@ -174,20 +235,23 @@ export const Recipes: React.FC = () => {
       carbs: 0,
       fats: 0
     }));
+    setCurrentRecipeId(id);
+    setCurrentRecipeName(suggestion.title);
     setIngredients(newIngredients);
     setShowAiModal(false);
-    saveRecipeAs(suggestion.title, newIngredients);
+    saveRecipe(id, suggestion.title, newIngredients);
   };
 
-  // Funzione per migrare i dati da localStorage a Firestore
-  const migrateLocalStorageToFirestore = async (recipesData: Record<string, Recipe>) => {
+  // Funzione per migrare i dati da localStorage a Firestore (schema legacy, senza id)
+  const migrateLocalStorageToFirestore = async (recipesData: Record<string, Omit<Recipe, 'id'>>) => {
     if (!auth.currentUser) return;
 
     try {
       const batch = [];
       for (const [recipeName, recipe] of Object.entries(recipesData)) {
-        const recipeRef = doc(db, `users/${auth.currentUser.uid}/recipes/${recipeName}`);
-        batch.push(setDoc(recipeRef, recipe));
+        const id = legacyRecipeId(recipeName);
+        const recipeRef = doc(db, `users/${auth.currentUser.uid}/recipes/${id}`);
+        batch.push(setDoc(recipeRef, { ...recipe, id, name: recipe.name || recipeName }));
       }
       await Promise.all(batch);
     } catch (error) {
@@ -202,8 +266,8 @@ export const Recipes: React.FC = () => {
 
       try {
         const batch = [];
-        for (const [recipeName, recipe] of Object.entries(recipes)) {
-          const recipeRef = doc(db, `users/${auth.currentUser.uid}/recipes/${recipeName}`);
+        for (const recipe of Object.values(recipes)) {
+          const recipeRef = doc(db, `users/${auth.currentUser.uid}/recipes/${recipe.id}`);
           batch.push(setDoc(recipeRef, recipe));
         }
         await Promise.all(batch);
@@ -234,7 +298,7 @@ export const Recipes: React.FC = () => {
       item.id === id ? { ...item, ...updates } : item
     );
     setIngredients(updatedIngredients);
-    saveRecipeAs(currentRecipe, updatedIngredients);
+    saveRecipe(currentRecipeId, currentRecipeName, updatedIngredients);
   };
 
   const handleFoodSelect = (item: RecipeItem, food: FoodOption | null) => {
@@ -284,7 +348,7 @@ export const Recipes: React.FC = () => {
   const removeIngredient = (id: string) => {
     const updatedIngredients = ingredients.filter(item => item.id !== id);
     setIngredients(updatedIngredients);
-    saveRecipeAs(currentRecipe, updatedIngredients);
+    saveRecipe(currentRecipeId, currentRecipeName, updatedIngredients);
   };
 
   const calculateTotals = (ingredientsList: RecipeItem[]) => {
@@ -298,57 +362,107 @@ export const Recipes: React.FC = () => {
 
     const caloriesPer100g = totals.grams > 0 ? (totals.calories / totals.grams) * 100 : 0;
     const proteinsPer100g = totals.grams > 0 ? (totals.proteins / totals.grams) * 100 : 0;
+    const carbsPer100g = totals.grams > 0 ? (totals.carbs / totals.grams) * 100 : 0;
+    const fatsPer100g = totals.grams > 0 ? (totals.fats / totals.grams) * 100 : 0;
 
-    return { ...totals, caloriesPer100g, proteinsPer100g };
+    return { ...totals, caloriesPer100g, proteinsPer100g, carbsPer100g, fatsPer100g };
   };
 
-  const saveRecipeAs = (name: string, ingredientsList: RecipeItem[]) => {
-    if (name.trim() === '' || name === 'Nuova Ricetta') return;
+  // Id dell'alimento "specchio" della ricetta nel database condiviso, derivato
+  // dall'id stabile della ricetta (non più dal nome): rinominare la ricetta ora
+  // aggiorna questa stessa voce invece di lasciarne una orfana.
+  const recipeFoodId = (uid: string, recipeId: string) => `recipe_${uid}_${recipeId}`;
+
+  /** Rende la ricetta cercabile come un normale alimento in qualunque pasto (Dieta/Ricette),
+   *  senza dover reinserire ogni volta i singoli ingredienti. */
+  const syncRecipeToFoodDatabase = async (recipe: Recipe) => {
+    if (!auth.currentUser || recipe.totalGrams <= 0) return;
+    try {
+      const foodId = recipeFoodId(auth.currentUser.uid, recipe.id);
+      await setDoc(doc(db, 'alimenti', foodId), {
+        name: `${recipe.name} (ricetta)`,
+        category: calculateFoodCategory(recipe.carbsPer100g, recipe.proteinsPer100g, recipe.fatsPer100g),
+        calories: recipe.caloriesPer100g,
+        carbs: recipe.carbsPer100g,
+        proteins: recipe.proteinsPer100g,
+        fats: recipe.fatsPer100g,
+        unit: 'g',
+        creatorId: auth.currentUser.uid,
+        isRecipe: true,
+        sourceRecipeId: recipe.id,
+        sourceRecipeName: recipe.name,
+        createdAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch (error) {
+      console.error('Errore sincronizzazione ricetta come alimento:', error);
+    }
+  };
+
+  const saveRecipe = (id: string, name: string, ingredientsList: RecipeItem[]) => {
+    if (name.trim() === '') return;
 
     const totals = calculateTotals(ingredientsList);
 
     const updatedRecipe: Recipe = {
+      id,
       name,
       ingredients: ingredientsList,
       totalGrams: totals.grams,
       totalCalories: totals.calories,
       totalProteins: totals.proteins,
+      totalCarbs: totals.carbs,
+      totalFats: totals.fats,
       caloriesPer100g: totals.caloriesPer100g,
-      proteinsPer100g: totals.proteinsPer100g
+      proteinsPer100g: totals.proteinsPer100g,
+      carbsPer100g: totals.carbsPer100g,
+      fatsPer100g: totals.fatsPer100g,
     };
 
-    setRecipes(prev => ({ ...prev, [name]: updatedRecipe }));
+    setRecipes(prev => ({ ...prev, [id]: updatedRecipe }));
+    syncRecipeToFoodDatabase(updatedRecipe);
+  };
+
+  const startNewRecipe = () => {
+    setCurrentRecipeId(generateRecipeId());
+    setCurrentRecipeName('');
+    setIngredients([]);
   };
 
   // Elimina una ricetta
-  const deleteRecipe = async (recipeName: string) => {
-    if (!recipeName || recipeName === 'Nuova Ricetta') return;
+  const deleteRecipe = async (id: string) => {
+    const recipe = recipes[id];
+    if (!id || !recipe) return;
 
     const ok = await confirm({
       title: 'Eliminare questa ricetta?',
-      message: `"${recipeName}" verrà rimossa. L'azione non può essere annullata.`,
+      message: `"${recipe.name}" verrà rimossa, insieme alla voce corrispondente nel database alimenti. L'azione non può essere annullata.`,
       confirmLabel: 'Elimina',
       danger: true,
     });
     if (ok) {
       try {
         if (auth.currentUser) {
-          const recipeRef = doc(db, `users/${auth.currentUser.uid}/recipes/${recipeName}`);
-          await deleteDoc(recipeRef);
+          await deleteDoc(doc(db, `users/${auth.currentUser.uid}/recipes/${id}`));
+          try {
+            await deleteDoc(doc(db, 'alimenti', recipeFoodId(auth.currentUser.uid, id)));
+          } catch (mirrorError) {
+            // La voce "specchio" può non esistere (ricetta mai sincronizzata): non è un errore.
+            console.warn('Voce alimento della ricetta non eliminata:', mirrorError);
+          }
         }
 
         const newRecipes = { ...recipes };
-        delete newRecipes[recipeName];
+        delete newRecipes[id];
         setRecipes(newRecipes);
 
-        if (currentRecipe === recipeName) {
-          const remainingNames = Object.keys(newRecipes);
-          if (remainingNames.length > 0) {
-            setCurrentRecipe(remainingNames[0]);
-            setIngredients(newRecipes[remainingNames[0]].ingredients);
+        if (currentRecipeId === id) {
+          const remaining = Object.values(newRecipes);
+          if (remaining.length > 0) {
+            setCurrentRecipeId(remaining[0].id);
+            setCurrentRecipeName(remaining[0].name);
+            setIngredients(remaining[0].ingredients);
           } else {
-            setCurrentRecipe('Nuova Ricetta');
-            setIngredients([]);
+            startNewRecipe();
           }
         }
         showToast('Ricetta eliminata.', 'success');
@@ -398,7 +512,8 @@ export const Recipes: React.FC = () => {
     const ws = XLSX.utils.json_to_sheet(ingredientsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Ricetta');
-    XLSX.writeFile(wb, `${currentRecipe.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.xlsx`);
+    const fileName = currentRecipeName.trim() || 'ricetta';
+    XLSX.writeFile(wb, `${fileName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.xlsx`);
   };
 
   const totals = calculateTotals(ingredients);
@@ -420,8 +535,20 @@ export const Recipes: React.FC = () => {
     const [movedItem] = newIngredients.splice(sourceIndex, 1);
     newIngredients.splice(targetIndex, 0, movedItem);
     setIngredients(newIngredients);
-    saveRecipeAs(currentRecipe, newIngredients);
+    saveRecipe(currentRecipeId, currentRecipeName, newIngredients);
   };
+
+  if (isLoadingRecipes) {
+    return (
+      <div className="space-y-8">
+        <SkeletonCard />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2"><SkeletonCard className="h-64" /></div>
+          <SkeletonCard className="h-64" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -429,7 +556,7 @@ export const Recipes: React.FC = () => {
       <div className="md3-card p-6 sm:p-8 border border-sage-200 dark:border-sage-800">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="flex-1 space-y-2">
-            <h2 className="text-3xl font-black text-sage-900 dark:text-sage-50 flex items-center mb-0">
+            <h2 className="text-3xl font-extrabold text-sage-900 dark:text-sage-50 flex items-center mb-0">
               <CookingPot className="w-8 h-8 mr-4 text-primary-600 dark:text-primary-400" />
               Ricettario Intelligente
             </h2>
@@ -439,27 +566,28 @@ export const Recipes: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3">
             <select
               className="md3-input min-w-[200px]"
-              value={recipes[currentRecipe] ? currentRecipe : 'Nuova Ricetta'}
+              value={recipes[currentRecipeId] ? currentRecipeId : NEW_RECIPE_VALUE}
               onChange={(e) => {
-                const name = e.target.value;
-                if (name === 'Nuova Ricetta') {
-                  setCurrentRecipe('Nuova Ricetta');
-                  setIngredients([]);
-                } else if (recipes[name]) {
-                  setCurrentRecipe(name);
-                  setIngredients(recipes[name].ingredients);
+                const value = e.target.value;
+                if (value === NEW_RECIPE_VALUE) {
+                  startNewRecipe();
+                } else if (recipes[value]) {
+                  setCurrentRecipeId(value);
+                  setCurrentRecipeName(recipes[value].name);
+                  setIngredients(recipes[value].ingredients);
                 }
               }}
             >
-              <option value="Nuova Ricetta">+ Crea Nuova Ricetta</option>
-              {Object.keys(recipes).map(name => (
-                <option key={name} value={name}>{name}</option>
+              <option value={NEW_RECIPE_VALUE}>+ Crea Nuova Ricetta</option>
+              {Object.values(recipes).map(recipe => (
+                <option key={recipe.id} value={recipe.id}>{recipe.name}</option>
               ))}
             </select>
 
             <button
-              onClick={() => deleteRecipe(currentRecipe)}
-              className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md3-medium transition-all"
+              onClick={() => deleteRecipe(currentRecipeId)}
+              disabled={!recipes[currentRecipeId]}
+              className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md3-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               title="Elimina ricetta"
             >
               <Trash2 className="w-6 h-6" />
@@ -475,10 +603,10 @@ export const Recipes: React.FC = () => {
             <div className="flex items-center justify-between mb-6 gap-3">
               <input
                 type="text"
-                value={currentRecipe}
-                onChange={(e) => setCurrentRecipe(e.target.value)}
-                onBlur={() => saveRecipeAs(currentRecipe, ingredients)}
-                className="text-2xl font-black bg-transparent border-none focus:ring-0 text-sage-900 dark:text-sage-50 placeholder-sage-300 w-full"
+                value={currentRecipeName}
+                onChange={(e) => setCurrentRecipeName(e.target.value)}
+                onBlur={() => saveRecipe(currentRecipeId, currentRecipeName, ingredients)}
+                className="text-2xl font-extrabold bg-transparent border-none focus:ring-0 text-sage-900 dark:text-sage-50 placeholder-sage-300 w-full"
                 placeholder="Nome della ricetta..."
               />
               <div className="flex items-center space-x-2">
@@ -510,7 +638,7 @@ export const Recipes: React.FC = () => {
                   className="grid grid-cols-12 gap-3 items-center p-3 bg-sage-50/50 dark:bg-sage-900/20 rounded-md3-medium border border-transparent hover:border-sage-200 dark:hover:border-sage-800 transition-all group cursor-move"
                 >
                   <div className="col-span-1 flex justify-center opacity-30 group-hover:opacity-100 transition-opacity">
-                    <span className="text-sage-400 dark:text-sage-600 font-black">⋮⋮</span>
+                    <span className="text-sage-400 dark:text-sage-600 font-extrabold">⋮⋮</span>
                   </div>
                   <div className="col-span-5 md:col-span-5">
                     <FoodAutocomplete
@@ -532,7 +660,7 @@ export const Recipes: React.FC = () => {
                     </div>
                   </div>
                   <div className="col-span-2 text-center">
-                    <div className="text-sm font-black text-sage-900 dark:text-sage-50">{Math.round(item.calories || 0)}</div>
+                    <div className="text-sm font-extrabold text-sage-900 dark:text-sage-50">{Math.round(item.calories || 0)}</div>
                     <div className="text-[9px] font-bold uppercase tracking-widest text-sage-400">kcal</div>
                   </div>
                   <div className="col-span-1 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -576,7 +704,7 @@ export const Recipes: React.FC = () => {
                     const grams = macro === 'carbs' ? totals.carbs : macro === 'proteins' ? totals.proteins : totals.fats;
                     return (
                       <div key={macro} className={`p-3 rounded-md3-medium text-center border ${c.bg} ${c.border}`}>
-                        <div className={`text-lg font-black ${c.textStrong}`}>{Math.round(grams)}g</div>
+                        <div className={`text-lg font-extrabold ${c.textStrong}`}>{Math.round(grams)}g</div>
                         <div className={`flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-widest ${c.text}`}>
                           <MacroIcon macro={macro} className="w-3 h-3 flex-shrink-0" />
                           {MACRO_LABELS[macro]}
@@ -605,11 +733,11 @@ export const Recipes: React.FC = () => {
               <div className="pt-6 border-t border-sage-100 dark:border-sage-800 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-bold text-sage-500 uppercase tracking-wider">Per 100g</span>
-                  <span className="text-lg font-black text-sage-900 dark:text-sage-50">{Math.round(totals.caloriesPer100g)} kcal</span>
+                  <span className="text-lg font-extrabold text-sage-900 dark:text-sage-50">{Math.round(totals.caloriesPer100g)} kcal</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-bold text-sage-500 uppercase tracking-wider">Proteine/100g</span>
-                  <span className="text-lg font-black text-sage-900 dark:text-sage-50">{Math.round(totals.proteinsPer100g)}g</span>
+                  <span className="text-lg font-extrabold text-sage-900 dark:text-sage-50">{Math.round(totals.proteinsPer100g)}g</span>
                 </div>
               </div>
 
@@ -635,7 +763,7 @@ export const Recipes: React.FC = () => {
                   <Sparkles className="w-8 h-8 text-accent-300" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black mb-0 text-white">Suggerimenti AI</h3>
+                  <h3 className="text-2xl font-extrabold mb-0 text-white">Suggerimenti AI</h3>
                   <p className="text-primary-100 text-sm font-medium">Ricette bilanciate create apposta per te</p>
                 </div>
               </div>
@@ -662,7 +790,7 @@ export const Recipes: React.FC = () => {
                     <div key={idx} className="flex flex-col bg-sage-50/50 dark:bg-sage-900/30 rounded-md3-large border border-sage-200 dark:border-sage-800 hover:border-primary-400 transition-all group overflow-hidden">
                       <div className="p-6 flex-1 space-y-4">
                         <div className="bg-white dark:bg-surface-dark p-4 rounded-md3-medium shadow-sm">
-                          <h4 className="font-black text-sage-900 dark:text-sage-50 group-hover:text-primary-600 transition-colors leading-tight mb-0">
+                          <h4 className="font-extrabold text-sage-900 dark:text-sage-50 group-hover:text-primary-600 transition-colors leading-tight mb-0">
                             {suggestion.title}
                           </h4>
                         </div>
@@ -672,11 +800,11 @@ export const Recipes: React.FC = () => {
 
                         <div className="grid grid-cols-2 gap-2">
                           <div className="bg-primary-100/50 dark:bg-primary-900/30 p-2 rounded-md3-small text-center">
-                            <div className="text-sm font-black text-primary-700 dark:text-primary-300">{suggestion.macros.calories}</div>
+                            <div className="text-sm font-extrabold text-primary-700 dark:text-primary-300">{suggestion.macros.calories}</div>
                             <div className="text-[8px] font-bold uppercase tracking-tighter text-primary-600/60">kcal</div>
                           </div>
                           <div className="bg-accent-100/50 dark:bg-accent-900/30 p-2 rounded-md3-small text-center">
-                            <div className="text-sm font-black text-accent-700 dark:text-accent-300">{suggestion.macros.proteins}g</div>
+                            <div className="text-sm font-extrabold text-accent-700 dark:text-accent-300">{suggestion.macros.proteins}g</div>
                             <div className="text-[8px] font-bold uppercase tracking-tighter text-accent-600/60">Prot</div>
                           </div>
                         </div>
@@ -694,7 +822,7 @@ export const Recipes: React.FC = () => {
 
                       <button
                         onClick={() => applyAiRecipe(suggestion)}
-                        className="w-full py-4 bg-primary-600 dark:bg-primary-500 text-white font-black text-sm flex items-center justify-center space-x-2 hover:bg-primary-700 transition-all"
+                        className="w-full py-4 bg-primary-600 dark:bg-primary-500 text-white font-extrabold text-sm flex items-center justify-center space-x-2 hover:bg-primary-700 transition-all"
                       >
                         <Check className="w-4 h-4" />
                         <span>Seleziona Ricetta</span>

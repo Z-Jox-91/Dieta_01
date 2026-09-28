@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Salad, X } from 'lucide-react';
 
 interface WelcomeCardProps {
@@ -25,7 +25,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({ onStart, onDismiss }) 
     <div className="w-14 h-14 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
       <Salad className="w-7 h-7 text-primary-600 dark:text-primary-400" />
     </div>
-    <h2 className="text-xl font-black text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Benvenuto su Cunzari</h2>
+    <h2 className="text-xl font-extrabold text-sage-900 dark:text-sage-50 mb-2 tracking-tight">Benvenuto su Cunzari</h2>
     <p className="text-sm text-sage-600 dark:text-sage-400 mb-6 max-w-md mx-auto">
       Tre passi per il tuo primo piano alimentare bilanciato secondo le Linee guida CREA.
     </p>

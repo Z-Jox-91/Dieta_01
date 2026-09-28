@@ -59,8 +59,16 @@ export const sendMessageToGemini = async (
   message: string,
   context: {
     foods: FoodItem[];
-    userPreferences?: any;
-    dietGoals?: any;
+    /** Risultati reali della scheda Calcoli (BMI/TDEE/deficit/target proteico) e,
+     *  se già impostati, i target kcal per pasto — così l'assistente propone pasti
+     *  che rispettano davvero i numeri dell'utente, non generici. */
+    dietGoals?: {
+      metabolismoBasale: number;
+      fabbisognoGiornaliero: number;
+      targetCalorieGiornaliero: number;
+      targetProteicoGiornaliero: number;
+      kcalPerPastoPerGiorno?: Record<string, Record<string, number>> | null;
+    } | null;
   }
 ) => {
   const apiKey = getApiKey();
@@ -73,16 +81,20 @@ export const sendMessageToGemini = async (
 
     Contesto fornito:
     - Database alimenti dell'utente (valori per 100g): ${JSON.stringify(context.foods.map(f => ({ name: f.name, kcal: f.calories, prot: f.proteins, carb: f.carbs, grassi: f.fats })))}
-    - Preferenze utente: ${JSON.stringify(context.userPreferences || 'Nessuna specifica')}
-    - Obiettivi dieta: ${JSON.stringify(context.dietGoals || 'Nessuno specifico')}
+    - Target calcolati nella scheda Calcoli dell'utente: ${context.dietGoals
+      ? JSON.stringify(context.dietGoals)
+      : 'Non ancora calcolati: se servono per la richiesta, invita l\'utente a completare prima la scheda Calcoli.'}
 
     Regole di interazione:
     1. Basati primariamente sugli alimenti forniti nel database dell'utente.
-    2. Mantieni un tono professionale, incoraggiante e scientifico.
-    3. Fornisci sempre le quantità in grammi quando suggerisci porzioni.
-    4. Rispondi in modo conciso ma completo, sempre in italiano.
-    5. Non fornire mai consigli medici o diagnosi. Invita sempre l'utente a consultare un medico per questioni di salute.
-    6. Se l'utente chiede qualcosa al di fuori della nutrizione, riporta gentilmente la conversazione sui temi di salute e benessere.
+    2. Quando proponi un pasto o una giornata, rispetta il target kcal indicato sopra (giornaliero o per
+       pasto, se disponibile) e la ripartizione macro CREA (carboidrati 45–60%, proteine 10–20%, grassi 20–35%
+       dell'energia), spiegando brevemente come ci arrivi.
+    3. Mantieni un tono professionale, incoraggiante e scientifico.
+    4. Fornisci sempre le quantità in grammi quando suggerisci porzioni.
+    5. Rispondi in modo conciso ma completo, sempre in italiano.
+    6. Non fornire mai consigli medici o diagnosi. Invita sempre l'utente a consultare un medico per questioni di salute.
+    7. Se l'utente chiede qualcosa al di fuori della nutrizione, riporta gentilmente la conversazione sui temi di salute e benessere.
   `;
 
   // "thinkingConfig" non è ancora nei tipi del SDK (@google/generative-ai) ma è

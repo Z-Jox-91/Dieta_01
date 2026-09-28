@@ -13,10 +13,10 @@ export const DaySelector: React.FC<DaySelectorProps> = ({ days, selectedDay, onD
         <button
           key={index}
           onClick={() => onDaySelect(index)}
-          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+          className={`px-4 py-2 rounded-full font-bold text-sm transition-all duration-200 ${
             selectedDay === index
-              ? 'bg-primary-600 dark:bg-primary-500 text-white shadow-md'
-              : 'bg-sage-100 dark:bg-surface-container-dark text-sage-700 dark:text-sage-300 hover:bg-sage-200 dark:hover:bg-surface-container-high-dark'
+              ? 'bg-primary-600 dark:bg-primary-500 text-white shadow-md3-1'
+              : 'bg-sage-100 dark:bg-surface-container-dark text-sage-700 dark:text-sage-300 hover:bg-sage-200 dark:hover:bg-sage-700'
           }`}
         >
           {day.substring(0, 3)}

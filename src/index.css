@@ -29,31 +29,32 @@
     @apply bg-surface-light dark:bg-surface-dark text-sage-900 dark:text-sage-100 transition-colors duration-300;
     font-size: var(--step-0);
     line-height: 1.6;
-    font-family: 'Inter', Roboto, system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
   }
 
-  h1 { 
-    @apply font-black tracking-tight text-sage-900 dark:text-sage-50 mb-6;
+  h1 {
+    @apply font-extrabold tracking-tight text-sage-900 dark:text-sage-50 mb-6;
     font-size: var(--step-4);
     line-height: 1.1;
   }
-  h2 { 
-    @apply font-black tracking-tight text-sage-900 dark:text-sage-50 mb-4;
+  h2 {
+    @apply font-extrabold tracking-tight text-sage-900 dark:text-sage-50 mb-4;
     font-size: var(--step-3);
     line-height: 1.2;
   }
-  h3 { 
+  h3 {
     @apply font-bold tracking-tight text-sage-800 dark:text-sage-100 mb-3;
     font-size: var(--step-2);
     line-height: 1.3;
   }
-  h4 { 
+  h4 {
     @apply font-bold tracking-tight text-sage-800 dark:text-sage-100 mb-2;
     font-size: var(--step-1);
   }
-  
+
   label {
-    @apply text-sm font-black uppercase tracking-widest text-sage-500 dark:text-sage-400 mb-1 block;
+    @apply text-sm font-extrabold uppercase tracking-widest text-sage-500 dark:text-sage-400 mb-1 block;
     font-size: var(--step--1);
   }
 }
@@ -62,17 +63,25 @@
   .md3-card {
     @apply bg-white dark:bg-surface-container-dark rounded-md3-large shadow-md3-1 hover:shadow-md3-2 transition-all duration-300 border border-sage-100 dark:border-sage-800;
   }
-  
+
   .md3-button-primary {
-    @apply bg-primary-600 dark:bg-primary-500 text-white rounded-full px-6 py-3 font-medium hover:shadow-md3-2 active:scale-95 transition-all;
+    @apply bg-primary-600 dark:bg-primary-500 text-white rounded-full px-6 py-3 font-bold hover:shadow-md3-2 active:scale-95 transition-all;
   }
 
   .md3-input {
-    @apply bg-sage-50 dark:bg-surface-container-dark border-none rounded-md3-small px-4 py-3 focus:ring-2 focus:ring-primary-500 transition-all text-sage-900 dark:text-sage-50 placeholder-sage-400 dark:placeholder-sage-500;
+    @apply bg-sage-50 dark:bg-surface-container-dark border border-sage-200 dark:border-sage-800 rounded-md3-small px-4 py-3 focus:outline-none focus:ring-4 focus:ring-primary-100 dark:focus:ring-primary-900/40 focus:border-primary-400 dark:focus:border-primary-500 transition-all text-sage-900 dark:text-sage-50 placeholder-sage-400 dark:placeholder-sage-500;
   }
 
+  /* ============ Tabelle ============
+     Un'unica base condivisa da Calcoli, Dieta e Alimenti: contenitore con
+     scroll orizzontale sempre attivo (mai testo tagliato o layout rotto su
+     schermi stretti), intestazione appiccicata in alto e prima colonna
+     appiccicata a sinistra quando la tabella scorre, numeri sempre allineati
+     a destra con cifre tabulari. */
   .md3-table-container {
-    @apply overflow-hidden rounded-md3-medium border border-sage-200 dark:border-sage-800 bg-white dark:bg-surface-dark;
+    @apply rounded-md3-medium border border-sage-200 dark:border-sage-800 bg-white dark:bg-surface-container-dark shadow-md3-1;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .md3-table {
@@ -80,23 +89,42 @@
   }
 
   .md3-table-header {
-    @apply bg-primary-50 dark:bg-primary-900/20 text-primary-900 dark:text-primary-100 font-black uppercase tracking-widest text-xs sticky top-0 z-10;
+    @apply bg-white dark:bg-surface-container-dark text-sage-500 dark:text-sage-400 font-bold uppercase tracking-widest text-[11px] sticky top-0 z-10;
   }
 
   .md3-table-th {
-    @apply px-6 py-4;
+    @apply px-5 py-3.5 border-b border-sage-200 dark:border-sage-700 whitespace-nowrap;
+  }
+
+  .md3-table-th.md3-table-th-num {
+    @apply text-right;
+  }
+
+  .md3-table-th-sticky {
+    @apply sticky left-0 z-20 bg-white dark:bg-surface-container-dark;
   }
 
   .md3-table-tr {
-    @apply border-b border-sage-100 dark:border-sage-800 last:border-0 hover:bg-sage-50/50 dark:hover:bg-surface-container-dark/50 transition-colors duration-200;
-  }
-
-  .md3-table-tr-even {
-    @apply bg-sage-50/30 dark:bg-surface-container-dark/20;
+    @apply border-b border-sage-100 dark:border-sage-800 last:border-0 hover:bg-sage-50 dark:hover:bg-white/[0.03] transition-colors duration-200;
   }
 
   .md3-table-td {
-    @apply px-6 py-4 text-sm text-sage-700 dark:text-sage-300;
+    @apply px-5 py-3.5 text-sm text-sage-700 dark:text-sage-300 tabular-nums align-middle;
+  }
+
+  .md3-table-td-num {
+    @apply text-right font-semibold text-sage-900 dark:text-sage-50;
+  }
+
+  /* Prima colonna "appiccicata": resta visibile durante lo scroll orizzontale,
+     serve un fondo pieno (non trasparente) altrimenti il contenuto delle
+     colonne successive si vedrebbe sotto durante lo scroll. */
+  .md3-table-td-sticky {
+    @apply sticky left-0 z-10 bg-white dark:bg-surface-container-dark font-bold text-sage-900 dark:text-sage-100;
+  }
+
+  .md3-table-tr:hover .md3-table-td-sticky {
+    @apply bg-sage-50 dark:bg-[#252118];
   }
 
   .md3-dropdown {

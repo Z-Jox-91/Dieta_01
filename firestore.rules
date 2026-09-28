@@ -1,0 +1,76 @@
+rules_version = '2';
+
+// Regole di sicurezza Firestore per Cunzari.
+//
+// Prima d'ora questo progetto non aveva un file di regole: qualunque utente
+// autenticato poteva leggere/scrivere/cancellare qualsiasi dato di qualsiasi
+// altro utente tramite chiamate dirette all'SDK, perché i controlli tipo
+// "puoi modificare solo gli alimenti creati da te" esistevano solo lato
+// interfaccia (bottoni disabilitati), mai lato server.
+//
+// Per applicarle sul progetto Firebase reale:
+//   firebase deploy --only firestore:rules
+// Per usarle in locale con l'emulatore:
+//   npm run emulators   (vedi package.json e firebase.json)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidFood(data) {
+      return data.name is string && data.name.size() > 0
+        && data.category is string
+        && data.calories is number
+        && data.carbs is number
+        && data.proteins is number
+        && data.fats is number
+        && data.unit is string
+        && data.creatorId is string;
+    }
+
+    // Spazio privato dell'utente: calcoli, target giornalieri/per pasto, diario
+    // pasti, ricette, cronologia chat con l'assistente. Nessun altro utente,
+    // anche autenticato, può leggerlo o scriverlo.
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /{subcollection=**} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // Database alimenti: condiviso e leggibile da chiunque sia autenticato
+    // (serve per la ricerca in Dieta/Ricette), ma modificabile o eliminabile
+    // solo da chi lo ha creato — compresa la voce "specchio" che le ricette
+    // sincronizzano automaticamente qui.
+    match /alimenti/{foodId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.creatorId == request.auth.uid
+        && isValidFood(request.resource.data);
+
+      allow update: if isSignedIn()
+        && resource.data.creatorId == request.auth.uid
+        && request.resource.data.creatorId == resource.data.creatorId
+        && isValidFood(request.resource.data);
+
+      // Cancellare un documento che non esiste è un'operazione nulla: la permettiamo
+      // (serve quando si elimina una ricetta che non ha ancora la voce "specchio").
+      allow delete: if isSignedIn()
+        && (resource == null || resource.data.creatorId == request.auth.uid);
+    }
+
+    // Tutto il resto: negato di default (whitelist, non blacklist).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

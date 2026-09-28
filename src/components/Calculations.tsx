@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Calculator, Target, Info, ChevronDown, ChevronUp, Lock, Shuffle } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -86,7 +86,7 @@ const AccordionSection: React.FC<AccordionSectionProps> = ({ step, icon: Icon, t
           {locked ? <Lock className="w-4 h-4" /> : <Icon className="w-5 h-5" />}
         </div>
         <div>
-          <p className="font-black text-sage-900 dark:text-sage-50 mb-0 flex items-center gap-2">
+          <p className="font-extrabold text-sage-900 dark:text-sage-50 mb-0 flex items-center gap-2">
             <span className="text-xs text-sage-400 dark:text-sage-500">{step}</span> {title}
           </p>
           <p className="text-xs text-sage-500 dark:text-sage-400">{subtitle}</p>
@@ -426,31 +426,31 @@ export const Calculations: React.FC = () => {
         onToggle={() => toggleSection('results')}
       >
         {isCalculated && results ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
-              <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">BMI (Indice Massa Corporea)</p>
-              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.bmi.toFixed(1)}</p>
-              <div className="mt-3 inline-block px-3 py-1 bg-white dark:bg-surface-dark rounded-full text-xs font-bold text-sage-600 dark:text-sage-400 border border-primary-100 dark:border-primary-800">{getBmiCategory(results.bmi)}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-sage-50 dark:bg-surface-container-dark p-6 rounded-md3-medium border border-sage-200 dark:border-sage-800">
+              <p className="text-xs font-extrabold text-primary-600 dark:text-primary-400 uppercase tracking-widest mb-2">BMI (Indice Massa Corporea)</p>
+              <p className="text-3xl font-extrabold text-sage-900 dark:text-sage-50">{results.bmi.toFixed(1)}</p>
+              <div className="mt-3 inline-block px-3 py-1 bg-white dark:bg-surface-dark rounded-full text-xs font-bold text-sage-600 dark:text-sage-400 border border-sage-200 dark:border-sage-700">{getBmiCategory(results.bmi)}</div>
             </div>
-            <div className="bg-accent-50 dark:bg-accent-900/10 p-6 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
-              <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">Peso Ideale</p>
-              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.idealWeight.toFixed(1)} <span className="text-lg">kg</span></p>
+            <div className="bg-sage-50 dark:bg-surface-container-dark p-6 rounded-md3-medium border border-sage-200 dark:border-sage-800">
+              <p className="text-xs font-extrabold text-primary-600 dark:text-primary-400 uppercase tracking-widest mb-2">Peso Ideale</p>
+              <p className="text-3xl font-extrabold text-sage-900 dark:text-sage-50">{results.idealWeight.toFixed(1)} <span className="text-lg">kg</span></p>
             </div>
-            <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
-              <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">MB (Metabolismo Basale)</p>
-              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.basalMetabolism)} <span className="text-lg">kcal</span></p>
+            <div className="bg-sage-50 dark:bg-surface-container-dark p-6 rounded-md3-medium border border-sage-200 dark:border-sage-800">
+              <p className="text-xs font-extrabold text-primary-600 dark:text-primary-400 uppercase tracking-widest mb-2">MB (Metabolismo Basale)</p>
+              <p className="text-3xl font-extrabold text-sage-900 dark:text-sage-50">{Math.round(results.basalMetabolism)} <span className="text-lg">kcal</span></p>
             </div>
-            <div className="bg-accent-50 dark:bg-accent-900/10 p-6 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
-              <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">TDEE (Fabbisogno Calorico Giornaliero)</p>
-              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.dailyMetabolism)} <span className="text-lg">kcal</span></p>
+            <div className="bg-sage-50 dark:bg-surface-container-dark p-6 rounded-md3-medium border border-sage-200 dark:border-sage-800">
+              <p className="text-xs font-extrabold text-primary-600 dark:text-primary-400 uppercase tracking-widest mb-2">TDEE (Fabbisogno Calorico Giornaliero)</p>
+              <p className="text-3xl font-extrabold text-sage-900 dark:text-sage-50">{Math.round(results.dailyMetabolism)} <span className="text-lg">kcal</span></p>
             </div>
-            <div className="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
-              <p className="text-xs font-black text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">Deficit</p>
-              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{Math.round(results.dailyDeficit)} <span className="text-lg">kcal</span></p>
+            <div className="bg-sage-50 dark:bg-surface-container-dark p-6 rounded-md3-medium border border-sage-200 dark:border-sage-800">
+              <p className="text-xs font-extrabold text-primary-600 dark:text-primary-400 uppercase tracking-widest mb-2">Deficit</p>
+              <p className="text-3xl font-extrabold text-sage-900 dark:text-sage-50">{Math.round(results.dailyDeficit)} <span className="text-lg">kcal</span></p>
             </div>
-            <div className="bg-accent-50 dark:bg-accent-900/10 p-6 rounded-md3-medium border border-accent-100 dark:border-accent-800/30">
-              <p className="text-xs font-black text-accent-700 dark:text-accent-300 uppercase tracking-widest mb-2">Target Proteico</p>
-              <p className="text-3xl font-black text-sage-900 dark:text-sage-50">{results.dailyProteinRda.toFixed(1)} <span className="text-lg">g</span></p>
+            <div className="bg-primary-50 dark:bg-primary-900/15 p-6 rounded-md3-medium border border-primary-100 dark:border-primary-800/30">
+              <p className="text-xs font-extrabold text-primary-700 dark:text-primary-300 uppercase tracking-widest mb-2">Target Proteico</p>
+              <p className="text-3xl font-extrabold text-sage-900 dark:text-sage-50">{results.dailyProteinRda.toFixed(1)} <span className="text-lg">g</span></p>
             </div>
           </div>
         ) : (
@@ -586,34 +586,36 @@ export const Calculations: React.FC = () => {
               </button>
             </div>
 
-            {/* Tabella unica: target giorno + pasti + assegnato/rimanente */}
+            {/* Tabella unica: target giorno + pasti + assegnato/rimanente.
+                Prima colonna "appiccicata" e larghezza minima: su mobile la
+                tabella scorre in orizzontale restando leggibile, invece di
+                schiacciare le colonne o rompere il layout. */}
             <div className="md3-table-container">
-              <div className="overflow-x-auto">
-                <table className="md3-table">
-                  <thead className="md3-table-header">
-                    <tr>
-                      <th className="md3-table-th">Giorno</th>
-                      <th className="md3-table-th text-center">Target Giorno</th>
-                      {activeMealList.map(m => <th key={m} className="md3-table-th text-center">{m}</th>)}
-                      <th className="md3-table-th text-center">Assegnato / Rimanente</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {daysOfWeek.map((day) => {
-                      const dayTarget = dailyCalorieLimits[day] || 0;
-                      const dayTotal = getDayMealTotal(day);
-                      const remaining = dayTarget - dayTotal;
-                      const hasTarget = dayTarget > 0;
-                      const isAligned = hasTarget && Math.abs(remaining) <= 50;
-                      return (
-                        <tr key={day} className="md3-table-tr">
-                          <td className="md3-table-td font-bold text-sage-900 dark:text-sage-100">{day}</td>
-                          <td className="md3-table-td p-2">
+              <table className="md3-table min-w-[760px]">
+                <thead className="md3-table-header">
+                  <tr>
+                    <th className="md3-table-th md3-table-th-sticky">Giorno</th>
+                    <th className="md3-table-th md3-table-th-num">Target Giorno</th>
+                    {activeMealList.map(m => <th key={m} className="md3-table-th md3-table-th-num">{m}</th>)}
+                    <th className="md3-table-th md3-table-th-num">Assegnato / Rimanente</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {daysOfWeek.map((day) => {
+                    const dayTarget = dailyCalorieLimits[day] || 0;
+                    const dayTotal = getDayMealTotal(day);
+                    const remaining = dayTarget - dayTotal;
+                    const hasTarget = dayTarget > 0;
+                    const isAligned = hasTarget && Math.abs(remaining) <= 50;
+                    return (
+                      <tr key={day} className="md3-table-tr">
+                        <td className="md3-table-td md3-table-td-sticky">{day}</td>
+                        <td className="md3-table-td p-2">
                             <input
                               type="number"
                               value={dailyCalorieLimits[day] || ''}
                               onChange={(e) => handleDailyLimitChange(day, e.target.value)}
-                              className="w-full max-w-[110px] mx-auto block py-1.5 text-center font-black text-sm rounded-full border-none bg-accent-100 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 placeholder-accent-400/60 focus:ring-2 focus:ring-accent-500 transition-all"
+                              className="w-full max-w-[110px] mx-auto block py-1.5 text-center font-extrabold text-sm rounded-full border-none bg-accent-100 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 placeholder-accent-400/60 focus:ring-2 focus:ring-accent-500 transition-all"
                               placeholder="kcal"
                             />
                           </td>
@@ -623,18 +625,18 @@ export const Calculations: React.FC = () => {
                                 type="number"
                                 value={dailyMealKcal[day]?.[meal] || ''}
                                 onChange={(e) => handleMealKcalChange(day, meal, e.target.value)}
-                                className="w-full block py-1.5 text-center text-xs font-black rounded-full border-none bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100 placeholder-sage-400 focus:ring-2 focus:ring-primary-500 transition-all"
+                                className="w-full block py-1.5 text-center text-xs font-extrabold rounded-full border-none bg-sage-100 dark:bg-surface-container-dark text-sage-800 dark:text-sage-100 placeholder-sage-400 focus:ring-2 focus:ring-primary-500 transition-all"
                                 placeholder="kcal"
                               />
                             </td>
                           ))}
                           <td className="md3-table-td text-center">
                             <p className="text-[10px] text-sage-500 dark:text-sage-400 mb-0.5">Assegnate</p>
-                            <p className="font-black text-sage-900 dark:text-sage-50">
+                            <p className="font-extrabold text-sage-900 dark:text-sage-50">
                               {dayTotal}{hasTarget ? ` / ${dayTarget}` : ''} <span className="text-xs font-normal text-sage-500">kcal</span>
                             </p>
                             {hasTarget ? (
-                              <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                              <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest ${
                                 isAligned
                                   ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                   : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
@@ -658,9 +660,9 @@ export const Calculations: React.FC = () => {
                           <tr className="bg-primary-50 dark:bg-primary-900/20 font-bold">
                             <td className="md3-table-td text-primary-900 dark:text-primary-100" colSpan={2 + activeMealList.length}>Totale Settimanale Effettivo</td>
                             <td className="md3-table-td text-primary-900 dark:text-primary-100">
-                              <p className="font-black text-xl">{weeklyTotal} <span className="text-sm">kcal</span></p>
+                              <p className="font-extrabold text-xl">{weeklyTotal} <span className="text-sm">kcal</span></p>
                               {weeklyTotal > 0 && (
-                                <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest ${
                                   isWeeklyAligned
                                     ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                     : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
@@ -672,14 +674,13 @@ export const Calculations: React.FC = () => {
                           </tr>
                           <tr className="bg-accent-50 dark:bg-accent-900/20 font-bold">
                             <td className="md3-table-td text-accent-900 dark:text-accent-100" colSpan={2 + activeMealList.length}>Calcolo Teorico</td>
-                            <td className="md3-table-td text-accent-900 dark:text-accent-100 font-black text-xl">{theoreticalWeekly} <span className="text-sm">kcal</span></td>
+                            <td className="md3-table-td text-accent-900 dark:text-accent-100 font-extrabold text-xl">{theoreticalWeekly} <span className="text-sm">kcal</span></td>
                           </tr>
                         </>
                       );
                     })()}
                   </tbody>
                 </table>
-              </div>
             </div>
           </>
         ) : (

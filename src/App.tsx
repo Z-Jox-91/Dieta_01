@@ -34,9 +34,12 @@ function App() {
           const userDoc = await getDoc(userDocRef);
 
           if (userDoc.exists()) {
-            // Se il documento esiste, carica i dati dell'utente
+            // Se il documento esiste, carica i dati dell'utente. Il nome può mancare
+            // per un istante subito dopo l'accesso (scrittura di sola email in corso):
+            // in quel caso ricadiamo su un nome ricavato dall'account, invece di far
+            // crashare la Dashboard.
             setUser({
-              name: userDoc.data().name,
+              name: userDoc.data().name || authUser.displayName || (authUser.email || 'utente').split('@')[0],
               email: authUser.email || ''
             });
           } else {
@@ -99,8 +102,10 @@ function App() {
         userCredential = await signInWithEmailAndPassword(auth, userData.email, userData.password);
       }
 
-      // Salva/aggiorna i dati utente in Firestore. In fase di accesso non
-      // sovrascriviamo il nome già salvato (merge), in registrazione lo impostiamo.
+      // In registrazione salviamo nome ed email. In fase di accesso NON scriviamo
+      // nulla: una scrittura di sola email in corsa con la lettura del profilo
+      // faceva arrivare il nome vuoto (e mandava in errore la Dashboard). Se il
+      // documento manca, lo crea già onAuthStateChanged.
       const userDocRef = doc(db, 'users', userCredential.user.uid);
       try {
         if (mode === 'register') {
@@ -108,8 +113,6 @@ function App() {
             name: userData.name,
             email: userData.email
           });
-        } else {
-          await setDoc(userDocRef, { email: userData.email }, { merge: true });
         }
       } catch (firestoreError: any) {
         console.error('Errore durante la scrittura su Firestore:', firestoreError);
@@ -167,7 +170,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50 dark:from-surface-dark dark:to-surface-container-dark flex items-center justify-center">
+      <div className="min-h-screen bg-surface-light dark:bg-surface-dark flex items-center justify-center">
         <div className="animate-pulse-soft">
           <div className="w-16 h-16 bg-primary-500 rounded-full"></div>
         </div>
@@ -179,7 +182,7 @@ function App() {
     <ErrorBoundary>
       <ToastProvider>
         <ConfirmProvider>
-          <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50 dark:from-surface-dark dark:to-surface-container-dark transition-colors duration-300">
+          <div className="min-h-screen bg-surface-light dark:bg-surface-dark transition-colors duration-300">
             <Header
               user={user}
               onLogout={handleLogout}
@@ -194,7 +197,10 @@ function App() {
                 <Login onAuth={handleAuth} />
               )}
             </main>
-            <AIAssistant />
+            {/* Solo dopo il login: prima non ha dati da mostrare (tutti i suoi effetti
+                richiedono auth.currentUser) e il FAB finiva sovrapposto al pulsante
+                "Accedi" nella pagina di login su mobile. */}
+            {user && <AIAssistant />}
           </div>
         </ConfirmProvider>
       </ToastProvider>

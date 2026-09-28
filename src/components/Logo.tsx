@@ -8,7 +8,7 @@ export const Logo: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }
       cy="38"
       r="26"
       fill="none"
-      stroke="#14532d"
+      stroke="#6d4aff"
       strokeWidth="11"
       strokeLinecap="round"
       strokeDasharray="122 163"

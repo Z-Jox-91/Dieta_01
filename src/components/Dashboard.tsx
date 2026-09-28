@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Calculations } from './Calculations';
 import { Diet } from './Diet';
 import { Recipes } from './Recipes';
@@ -59,7 +59,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, activeTab, onTabChan
   return (
     <div className="max-w-7xl mx-auto animate-fade-in px-4 sm:px-6 lg:px-8 pb-24 lg:pb-8">
       <div className="mb-6 sm:mb-10 pt-4">
-        <h1 className="text-3xl sm:text-4xl font-black text-sage-900 dark:text-sage-50 tracking-tight">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-sage-900 dark:text-sage-50 tracking-tight">
           Ciao, {user.name.split(' ')[0]}!
         </h1>
         <p className="text-sage-600 dark:text-sage-400 text-lg">Il tuo benessere inizia da qui.</p>
